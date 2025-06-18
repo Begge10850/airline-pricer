@@ -71,7 +71,8 @@ with st.form("pricing_scenario_form"):
 
         else:
             st.error("No flights found for the selected route in our dataset.")
-            # Disable further inputs if no flight is selected
+            selected_flight = None
+            flight_details = None 
             st.stop()
 
     # --- Panel 3: Price a Scenario ---
