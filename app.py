@@ -12,7 +12,7 @@ st.set_page_config(page_title="Airline Price Advisor", layout="wide")
 @st.cache_data
 def load_data_and_artifacts():
     # Load the dataset that contains all flight details
-    df = pd.read_csv('data/cleaned_flight_data.csv')
+    df = pd.read_csv('data/Clean_Dataset_EDA_Processed.csv')
     # Load the pre-trained model and preprocessor
     preprocessor = joblib.load('preprocessor.joblib')
     model = joblib.load('flight_price_model.joblib')
