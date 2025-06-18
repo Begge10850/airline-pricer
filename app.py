@@ -73,20 +73,23 @@ with st.form("pricing_scenario_form"):
             st.error("No flights found for the selected route in our dataset.")
             selected_flight = None
             flight_details = None 
-            st.stop()
 
     # --- Panel 3: Price a Scenario ---
     with col3:
-        st.header("3. Price a Scenario")
-        
-        # Use the auto-populated class as the default, but allow user to change it
+    st.header("3. Price a Scenario")
+
+    if flight_details:
         class_options = sorted(df['class'].unique())
         default_class_index = class_options.index(flight_details['class'])
         flight_class = st.selectbox("Class", options=class_options, index=default_class_index,
                                     help="Price the flight for a specific cabin class.")
-        
         days_left = st.slider("Days Left Before Departure", min_value=1, max_value=50, value=20,
                               help="Simulate the price based on how far in advance the booking is made.")
+    else:
+        st.info("Please select a valid route and flight to continue.")
+        flight_class = None
+        days_left = None
+
         
 st.write("")
 predict_button = st.form_submit_button("Predict Price", type="primary", use_container_width=True)
@@ -94,7 +97,7 @@ predict_button = st.form_submit_button("Predict Price", type="primary", use_cont
 
 # --- 4. Prediction Logic and Display ---
 # This block only runs when the "Predict Price" button inside the form is clicked.
-if predict_button:
+if predict_button and flight_details:
     # Create the input DataFrame for the model
     # We use the auto-populated flight_details and the user's scenario inputs
     input_data = pd.DataFrame({
