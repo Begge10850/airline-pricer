@@ -3,10 +3,12 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Page config
-st.set_page_config(page_title="Airline Price Advisor", layout="wide")
+# --- Page Setup ---
+st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
+st.title("✈️ Internal Airline Ticket Pricing Advisor (INR ₹)")
+st.markdown("Predict base ticket prices based on selected route, airline, and flight details.")
 
-# Load data & models
+# --- Load Data and Artifacts ---
 @st.cache_data
 def load_data_and_artifacts():
     df = pd.read_csv('data/Clean_Dataset_EDA_Processed.csv')
@@ -17,68 +19,69 @@ def load_data_and_artifacts():
 try:
     df, preprocessor, model = load_data_and_artifacts()
 except FileNotFoundError:
-    st.error("Required model or dataset files not found.")
+    st.error("Required model or data files not found.")
     st.stop()
 
-# App title
-st.title("✈️ Internal Airline Ticket Pricing Advisor (INR ₹)")
-st.markdown("Use this tool to simulate ticket prices based on real flight details.")
-
-# UI columns
+# --- UI Columns ---
 col1, col2, col3 = st.columns(3)
 
-# --- Panel 1: Select Route ---
+# --- Panel 1: Route Selection ---
 with col1:
-    st.subheader("1. Route Selection")
-    source_city = st.selectbox("Source City", options=[""] + sorted(df['source_city'].unique()))
+    st.subheader("1. Select Route")
+    source_city = st.selectbox("Source City", [""] + sorted(df['source_city'].unique()))
 
     if source_city:
         destination_options = sorted(df[df['source_city'] == source_city]['destination_city'].unique())
     else:
         destination_options = []
 
-    destination_city = st.selectbox("Destination City", options=[""] + destination_options)
+    destination_city = st.selectbox("Destination City", [""] + destination_options)
 
-# --- Panel 2: View Airlines & Select Flight ---
+# --- Panel 2: Airline and Flight ---
 with col2:
-    st.subheader("2. Flights on this Route")
+    st.subheader("2. Select Flight")
 
+    airline = None
     flight_details = None
-    selected_flight = None
 
     if source_city and destination_city and source_city != destination_city:
-        route_flights = df[(df['source_city'] == source_city) & (df['destination_city'] == destination_city)]
-        available_airlines = sorted(route_flights['airline'].unique())
-        st.markdown("**Airlines serving this route:**")
-        st.write(", ".join(available_airlines))
+        route_df = df[(df['source_city'] == source_city) & (df['destination_city'] == destination_city)]
 
-        flight_options = sorted(route_flights['flight'].unique())
-        if flight_options:
-            selected_flight = st.selectbox("Flight Number", options=flight_options)
+        # Step 1: Select Airline
+        airlines = sorted(route_df['airline'].unique())
+        airline = st.selectbox("Airline", [""] + airlines)
+
+        if airline:
+            airline_flights = route_df[route_df['airline'] == airline]
+            flight_numbers = sorted(airline_flights['flight'].unique())
+
+            selected_flight = st.selectbox("Flight Number", [""] + flight_numbers)
+
             if selected_flight:
-                flight_details = route_flights[route_flights['flight'] == selected_flight].iloc[0]
+                flight_details = airline_flights[airline_flights['flight'] == selected_flight].iloc[0]
 
+                # Display fixed flight details
                 st.markdown(f"**Stops:** {flight_details['stops']}")
                 st.markdown(f"**Duration:** {flight_details['duration']} hours")
                 st.markdown(f"**Departure Time:** {flight_details['departure_time']}")
                 st.markdown(f"**Arrival Time:** {flight_details['arrival_time']}")
         else:
-            st.warning("No flights found for this route.")
+            st.info("Select an airline to see its flights for this route.")
     elif source_city == destination_city and source_city:
-        st.warning("Source and destination cities cannot be the same.")
+        st.warning("Source and Destination cities cannot be the same.")
 
-# --- Panel 3: Pricing Inputs ---
+# --- Panel 3: Pricing Scenario ---
 with col3:
-    st.subheader("3. Price This Flight")
+    st.subheader("3. Pricing Input")
 
     if flight_details is not None:
         class_options = sorted(df['class'].unique())
-        default_class_index = class_options.index(flight_details['class'])
-        flight_class = st.selectbox("Class", options=class_options, index=default_class_index)
+        default_class = flight_details['class']
+        flight_class = st.selectbox("Class", options=class_options, index=class_options.index(default_class))
 
-        days_left = st.slider("Days Left Until Departure", min_value=1, max_value=50, value=20)
+        days_left = st.slider("Days Left Until Departure", min_value=1, max_value=50, value=15)
 
-        if st.button("🔮 Predict Ticket Price"):
+        if st.button("🔮 Predict Base Price"):
             input_data = pd.DataFrame({
                 'airline': [flight_details['airline']],
                 'source_city': [source_city],
@@ -95,6 +98,6 @@ with col3:
             predicted_price_log = model.predict(input_processed)
             predicted_price = np.expm1(predicted_price_log)[0]
 
-            st.success(f"### 💰 Predicted Ticket Price: ₹{predicted_price:,.2f}")
+            st.success(f"### 💰 Predicted Base Ticket Price: ₹{predicted_price:,.2f}")
     else:
-        st.info("Select a flight to enable price prediction.")
+        st.info("Select airline and flight to enable prediction.")
