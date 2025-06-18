@@ -90,9 +90,8 @@ with st.form("pricing_scenario_form"):
             flight_class = None
             days_left = None
 
-        
-st.write("")
-predict_button = st.form_submit_button("Predict Price", type="primary", use_container_width=True)
+    st.write("")
+    predict_button = st.form_submit_button("Predict Price", type="primary", use_container_width=True)
 
 
 # --- 4. Prediction Logic and Display ---
