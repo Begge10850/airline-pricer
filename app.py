@@ -45,11 +45,6 @@ with st.form("pricing_scenario_form"):
         # Filter available destinations for the selected source
         valid_destinations = sorted(df[df['source_city'] == source_city]['destination_city'].unique())
         destination_city = st.selectbox("Destination City", options=valid_destinations)
-        
-        if not flight_options:
-            st.error(f"No flights found from {source_city} to {destination_city}. Try a different route.")
-            selected_flight = None
-            flight_details = None
 
 
     # --- Panel 2: Select Flight (Dynamically Updated) ---
