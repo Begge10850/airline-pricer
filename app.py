@@ -88,8 +88,8 @@ with st.form("pricing_scenario_form"):
         days_left = st.slider("Days Left Before Departure", min_value=1, max_value=50, value=20,
                               help="Simulate the price based on how far in advance the booking is made.")
         
-    st.write("")
-    predict_button = st.form_submit_button("Predict Price", type="primary", use_container_width=True)
+st.write("")
+predict_button = st.form_submit_button("Predict Price", type="primary", use_container_width=True)
 
 
 # --- 4. Prediction Logic and Display ---
