@@ -76,19 +76,19 @@ with st.form("pricing_scenario_form"):
 
     # --- Panel 3: Price a Scenario ---
     with col3:
-    st.header("3. Price a Scenario")
+        st.header("3. Price a Scenario")
 
-    if flight_details:
-        class_options = sorted(df['class'].unique())
-        default_class_index = class_options.index(flight_details['class'])
-        flight_class = st.selectbox("Class", options=class_options, index=default_class_index,
-                                    help="Price the flight for a specific cabin class.")
-        days_left = st.slider("Days Left Before Departure", min_value=1, max_value=50, value=20,
-                              help="Simulate the price based on how far in advance the booking is made.")
-    else:
-        st.info("Please select a valid route and flight to continue.")
-        flight_class = None
-        days_left = None
+        if flight_details:
+            class_options = sorted(df['class'].unique())
+            default_class_index = class_options.index(flight_details['class'])
+            flight_class = st.selectbox("Class", options=class_options, index=default_class_index,
+                                        help="Price the flight for a specific cabin class.")
+            days_left = st.slider("Days Left Before Departure", min_value=1, max_value=50, value=20,
+                                help="Simulate the price based on how far in advance the booking is made.")
+        else:
+            st.info("Please select a valid route and flight to continue.")
+            flight_class = None
+            days_left = None
 
         
 st.write("")
