@@ -3,8 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# --- THE FIX: Move set_page_config() to be the first Streamlit command ---
-# This command sets the overall properties of the web page.
+# Set the page config as the first Streamlit command
 st.set_page_config(page_title="Airline Price Advisor", layout="wide")
 
 
@@ -19,8 +18,6 @@ def load_artifacts():
 try:
     preprocessor, model = load_artifacts()
 except FileNotFoundError:
-    # This is also a Streamlit command, but it's inside an exception block,
-    # so it only runs if there's an error. The app will stop if this happens.
     st.error("Model or preprocessor files not found. Please run the modeling notebook first.")
     st.stop()
 
@@ -37,7 +34,6 @@ if 'show_prediction' not in st.session_state:
 st.title("✈️ Dynamic Airline Price Advisor")
 st.write("Enter the details of the flight to get a price prediction.")
 
-# --- Using st.form to prevent automatic reruns ---
 with st.form("prediction_form"):
     
     airline_options = ['SpiceJet', 'AirAsia', 'Vistara', 'GO_FIRST', 'Indigo', 'Air_India']
@@ -79,10 +75,11 @@ with st.form("prediction_form"):
 if submitted:
     st.session_state['show_prediction'] = True
     
+    # Create a DataFrame from the user's input
     input_data = pd.DataFrame({
         'airline': [st.session_state.airline],
         'source_city': [st.session_state.source_city],
-        'departure_time': [st.session_tate.departure_time],
+        'departure_time': [st.session_state.departure_time], # <-- THE FIX IS HERE
         'stops': [st.session_state.stops],
         'arrival_time': [st.session_state.arrival_time],
         'destination_city': [st.session_state.destination_city],
