@@ -6,3 +6,5 @@ __pycache__/
 
 #Ignore the .*joblib files
 *.joblib
+
+qwe.py
