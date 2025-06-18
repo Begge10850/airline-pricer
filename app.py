@@ -7,100 +7,98 @@ import joblib
 st.set_page_config(page_title="Airline Price Advisor", layout="wide")
 
 
-# --- 1. Load the Saved Model and Preprocessor ---
-
+# --- 1. Load Artifacts and Data ---
+# Use cache_data for efficiency
 @st.cache_data
-def load_artifacts():
+def load_data_and_artifacts():
+    # Load the dataset that contains all flight details
+    df = pd.read_csv('data/cleaned_flight_data.csv')
+    # Load the pre-trained model and preprocessor
     preprocessor = joblib.load('preprocessor.joblib')
     model = joblib.load('flight_price_model.joblib')
-    return preprocessor, model
+    return df, preprocessor, model
 
 try:
-    preprocessor, model = load_artifacts()
+    df, preprocessor, model = load_data_and_artifacts()
 except FileNotFoundError:
-    st.error("Model or preprocessor files not found. Please run the modeling notebook first.")
+    st.error("Model, preprocessor, or data files not found. Please ensure all necessary files are present.")
     st.stop()
 
 
-# --- 2. Initialize Session State ---
-if 'prediction' not in st.session_state:
-    st.session_state['prediction'] = None
-if 'show_prediction' not in st.session_state:
-    st.session_state['show_prediction'] = False
+# --- 2. Build the User Interface (UI) ---
+
+st.title("✈️ Professional Airline Pricing Advisor")
+st.write("Select a route and a specific flight to get a dynamic price prediction.")
 
 
-# --- 3. Create the User Interface (UI) ---
+# --- Create a more realistic, cascading input system ---
+col1, col2, col3 = st.columns(3)
 
-st.title("✈️ Dynamic Airline Price Advisor")
-st.write("Enter the details of the flight to get a price prediction.")
+# --- Column 1: Route Selection ---
+with col1:
+    st.header("1. Select Route")
+    source = st.selectbox("Source City", options=sorted(df['source_city'].unique()))
+    destination = st.selectbox("Destination City", options=sorted(df['destination_city'].unique()))
 
-with st.form("prediction_form"):
+# --- Column 2: Flight Selection (Dynamically Updated) ---
+with col2:
+    st.header("2. Select Flight")
     
-    airline_options = ['SpiceJet', 'AirAsia', 'Vistara', 'GO_FIRST', 'Indigo', 'Air_India']
-    source_city_options = ['Delhi', 'Mumbai', 'Bangalore', 'Kolkata', 'Hyderabad', 'Chennai']
-    departure_time_options = ['Evening', 'Early_Morning', 'Morning', 'Afternoon', 'Night', 'Late_Night']
-    stops_options = [0, 1, 2]
-    arrival_time_options = ['Night', 'Morning', 'Early_Morning', 'Afternoon', 'Evening', 'Late_Night']
-    destination_city_options = ['Mumbai', 'Bangalore', 'Kolkata', 'Hyderabad', 'Chennai', 'Delhi']
-    class_options = ['Economy', 'Business']
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.header("Flight Details")
-        airline = st.selectbox("Airline", options=airline_options, key='airline')
-        source_city = st.selectbox("Source City", options=source_city_options, key='source_city')
-        destination_city = st.selectbox("Destination City", options=destination_city_options, key='destination_city')
-        stops = st.selectbox("Number of Stops", options=stops_options, key='stops')
-        flight_class = st.selectbox("Class", options=class_options, key='flight_class')
-
-    with col2:
-        st.header("Timing & Duration")
-        departure_time = st.selectbox("Departure Time", options=departure_time_options, key='departure_time')
-        arrival_time = st.selectbox("Arrival Time", options=arrival_time_options, key='arrival_time')
-        duration = st.number_input("Duration (in hours)", min_value=0.5, max_value=50.0, value=2.5, step=0.5, key='duration')
-        days_left = st.slider("Days Left Before Departure", min_value=1, max_value=50, value=20, key='days_left')
-
-    submit_col, clear_col = st.columns([1, 0.2])
-
-    with submit_col:
-        submitted = st.form_submit_button("Predict Price")
-
-    with clear_col:
-        cleared = st.form_submit_button("Clear")
-
-
-# --- 4. Prediction and Clear Logic ---
-
-if submitted:
-    st.session_state['show_prediction'] = True
+    # Filter the dataframe based on the selected route
+    route_flights = df[(df['source_city'] == source) & (df['destination_city'] == destination)]
     
-    # Create a DataFrame from the user's input
+    # Get the unique flight numbers for that route
+    flight_options = sorted(route_flights['flight'].unique())
+    
+    if flight_options:
+        selected_flight = st.selectbox("Flight Number", options=flight_options)
+        
+        # Get the details for the single selected flight
+        flight_details = route_flights[route_flights['flight'] == selected_flight].iloc[0]
+        
+        # Display the auto-populated details
+        st.info(f"**Airline:** {flight_details['airline']}")
+        st.info(f"**Stops:** {flight_details['stops']}")
+        st.info(f"**Typical Duration:** {flight_details['duration']:.2f} hours")
+        st.info(f"**Departure Time:** {flight_details['departure_time']}")
+        st.info(f"**Arrival Time:** {flight_details['arrival_time']}")
+    else:
+        st.warning("No direct flights found for this route in the dataset.")
+        st.stop() # Stop the app if no flights are available
+
+# --- Column 3: Dynamic Pricing Inputs ---
+with col3:
+    st.header("3. Price a Scenario")
+    flight_class = st.selectbox("Class", options=sorted(df['class'].unique()))
+    days_left = st.slider("Days Left Before Departure", min_value=1, max_value=50, value=20)
+    
+    predict_button = st.button("Predict Price", type="primary")
+
+# --- Prediction Logic ---
+if predict_button:
+    # Create the input DataFrame for the model
+    # We use the auto-populated flight_details for most columns
     input_data = pd.DataFrame({
-        'airline': [st.session_state.airline],
-        'source_city': [st.session_state.source_city],
-        'departure_time': [st.session_state.departure_time], # <-- THE FIX IS HERE
-        'stops': [st.session_state.stops],
-        'arrival_time': [st.session_state.arrival_time],
-        'destination_city': [st.session_state.destination_city],
-        'class': [st.session_state.flight_class.lower()],
-        'duration': [st.session_state.duration],
-        'days_left': [st.session_state.days_left]
+        'airline': [flight_details['airline']],
+        'source_city': [source],
+        'departure_time': [flight_details['departure_time']],
+        'stops': [flight_details['stops']],
+        'arrival_time': [flight_details['arrival_time']],
+        'destination_city': [destination],
+        'class': [flight_class.lower()], # Standardize to lowercase
+        'duration': [flight_details['duration']],
+        'days_left': [days_left]
     })
 
+    # Preprocess the input data
     input_processed = preprocessor.transform(input_data)
-    predicted_price_log = model.predict(input_processed)
-    predicted_price = np.expm1(predicted_price_log)[0]
     
-    st.session_state['prediction'] = predicted_price
+    # Make a prediction
+    predicted_price_log = model.predict(input_processed)
+    
+    # Inverse transform to get the actual price
+    predicted_price = np.expm1(predicted_price_log)[0]
 
-if cleared:
-    st.session_state['show_prediction'] = False
-    st.session_state['prediction'] = None
-
-
-# --- 5. Display the Result ---
-
-if st.session_state['show_prediction'] and st.session_state['prediction'] is not None:
-    st.success(f"Predicted Flight Price:  €{st.session_state['prediction']:,.2f}")
+    # Display the result
+    st.success(f"Predicted Flight Price:  €{predicted_price:,.2f}")
 
