@@ -5,100 +5,114 @@ import joblib
 
 # --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
-st.title("✈️ Interactive Flight Price Explorer & Advisor")
+st.title("✈️ Internal Airline Ticket Pricing Advisor (INR ₹)")
 
 # --- Load Data and Model ---
-@st.cache_data
+@st.cache_resource
 def load_data_and_artifacts():
     df = pd.read_csv('data/Clean_Dataset_EDA_Processed.csv')
     preprocessor = joblib.load('preprocessor.joblib')
     model = joblib.load('flight_price_model.joblib')
     return df, preprocessor, model
 
-try:
-    df, preprocessor, model = load_data_and_artifacts()
-except FileNotFoundError:
-    st.error("Required model or data files not found.")
-    st.stop()
+df, preprocessor, model = load_data_and_artifacts()
 
-# --- User Input Filters in the Sidebar ---
-st.sidebar.header("Filter Flights")
+# --- Session State Init ---
+if "submitted" not in st.session_state:
+    st.session_state.submitted = False
 
-# 1. Start with blank dropdowns by adding a placeholder
-source_city = st.sidebar.selectbox("Source City", ["---"] + sorted(df['source_city'].unique()))
+# --- Main Form ---
+with st.form("prediction_form"):
+    st.subheader("Flight Pricing Inputs")
 
-# --- Filtering Logic ---
-# Start with the full dataframe and filter it down sequentially
-filtered_df = df.copy()
+    col1, col2, col3 = st.columns(3)
 
-if source_city != "---":
-    filtered_df = filtered_df[filtered_df['source_city'] == source_city]
-    destination_city = st.sidebar.selectbox("Destination City", ["---"] + sorted(filtered_df['destination_city'].unique()))
-
-    if destination_city != "---":
-        if source_city == destination_city:
-            st.sidebar.error("Source and Destination must be different.")
+    with col1:
+        source_city = st.selectbox("Source City", [""] + sorted(df['source_city'].unique()))
+    with col2:
+        if source_city:
+            valid_destinations = sorted(df[df['source_city'] == source_city]['destination_city'].unique())
         else:
-            filtered_df = filtered_df[filtered_df['destination_city'] == destination_city]
-            airline = st.sidebar.selectbox("Airline", ["---"] + sorted(filtered_df['airline'].unique()))
+            valid_destinations = []
+        destination_city = st.selectbox("Destination City", [""] + valid_destinations)
+    with col3:
+        if source_city and destination_city and source_city != destination_city:
+            route_df = df[(df['source_city'] == source_city) & (df['destination_city'] == destination_city)]
+            airlines = sorted(route_df['airline'].unique())
+        else:
+            airlines = []
+        airline = st.selectbox("Airline", [""] + airlines)
 
-            if airline != "---":
-                filtered_df = filtered_df[filtered_df['airline'] == airline]
-                
-                # Smart time filtering
-                time_choice = st.sidebar.radio("Filter by Time:", ("Departure", "Arrival"), horizontal=True)
-                if time_choice == "Departure":
-                    departure_time = st.sidebar.selectbox("Departure Time", ["---"] + sorted(filtered_df['departure_time'].unique()))
-                    if departure_time != "---":
-                        filtered_df = filtered_df[filtered_df['departure_time'] == departure_time]
-                else: # Arrival Time was chosen
-                    arrival_time = st.sidebar.selectbox("Arrival Time", ["---"] + sorted(filtered_df['arrival_time'].unique()))
-                    if arrival_time != "---":
-                        filtered_df = filtered_df[filtered_df['arrival_time'] == arrival_time]
+    col4, col5 = st.columns(2)
+    with col4:
+        if airline:
+            dep_times = sorted(route_df[route_df['airline'] == airline]['departure_time'].unique())
+        else:
+            dep_times = []
+        departure_time = st.selectbox("Departure Time", [""] + dep_times)
 
-                # Specific days_left filter
-                days_left_options = sorted(filtered_df['days_left'].unique())
-                days_left_filter = st.sidebar.selectbox("Days Left Until Departure", ["---"] + days_left_options)
-                
-                if days_left_filter != "---":
-                    filtered_df = filtered_df[filtered_df['days_left'] == days_left_filter]
+    with col5:
+        if airline and departure_time:
+            arr_times = sorted(route_df[(route_df['airline'] == airline) & (route_df['departure_time'] == departure_time)]['arrival_time'].unique())
+        else:
+            arr_times = []
+        arrival_time = st.selectbox("Arrival Time", [""] + arr_times)
 
+    col6, col7 = st.columns(2)
+    with col6:
+        class_choice = st.selectbox("Class", options=sorted(df['class'].unique()))
+    with col7:
+        days_left = st.slider("Days Left Until Departure", min_value=1, max_value=50, value=15)
 
-# --- Display Filtered Flights Table ---
-# This section will only appear if the dataframe has been filtered
-if len(filtered_df) < len(df):
-    st.header("Available Flight Options")
-    st.write(f"Found {len(filtered_df)} matching flights based on your filters.")
-    
-    display_cols = ['flight', 'departure_time', 'arrival_time', 'duration', 'stops', 'class', 'price']
-    st.dataframe(filtered_df[display_cols])
+    # Submit Button
+    submitted = st.form_submit_button("🔮 Predict Price")
+    if submitted:
+        st.session_state.submitted = True
+        st.session_state.input_data = {
+            "source_city": source_city,
+            "destination_city": destination_city,
+            "airline": airline,
+            "departure_time": departure_time,
+            "arrival_time": arrival_time,
+            "class": class_choice,
+            "days_left": days_left
+        }
 
-    # --- Prediction Section ---
-    if not filtered_df.empty:
-        st.header("Price Prediction for a Scenario")
-        st.write("Predicting price based on the **first flight** in the table above. You can adjust the class.")
-        
-        flight_to_price = filtered_df.iloc[0]
-        
-        flight_class = st.selectbox("Select Class to Predict", sorted(df['class'].unique()), index=sorted(df['class'].unique()).index(flight_to_price['class']))
-        
-        if st.button("🔮 Predict Price", type="primary"):
-            input_data = pd.DataFrame({
-                'airline': [flight_to_price['airline']],
-                'source_city': [flight_to_price['source_city']],
-                'departure_time': [flight_to_price['departure_time']],
-                'stops': [flight_to_price['stops']],
-                'arrival_time': [flight_to_price['arrival_time']],
-                'destination_city': [flight_to_price['destination_city']],
-                'class': [flight_class.lower()], # Use the selected class
-                'duration': [flight_to_price['duration']],
-                'days_left': [flight_to_price['days_left']]
-            })
+# --- Reset Button ---
+if st.button("🔄 Reset Form"):
+    st.session_state.submitted = False
+    st.session_state.input_data = {}
 
-            input_processed = preprocessor.transform(input_data)
-            predicted_log_price = model.predict(input_processed)
-            predicted_price = np.expm1(predicted_log_price)[0]
+# --- Prediction Logic ---
+if st.session_state.get("submitted"):
+    input_values = st.session_state.input_data
+    # Match exact flight from data
+    match = df[
+        (df['source_city'] == input_values['source_city']) &
+        (df['destination_city'] == input_values['destination_city']) &
+        (df['airline'] == input_values['airline']) &
+        (df['departure_time'] == input_values['departure_time']) &
+        (df['arrival_time'] == input_values['arrival_time'])
+    ]
 
-            st.success(f"### 💰 Predicted Base Ticket Price:\n\n₹{predicted_price:,.0f}")
-else:
-    st.info("ℹ️ Please use the filters in the sidebar to find flights and predict prices.")
+    if not match.empty:
+        record = match.iloc[0]
+        input_df = pd.DataFrame({
+            'airline': [record['airline']],
+            'source_city': [record['source_city']],
+            'departure_time': [record['departure_time']],
+            'stops': [record['stops']],
+            'arrival_time': [record['arrival_time']],
+            'destination_city': [record['destination_city']],
+            'class': [input_values['class'].lower()],
+            'duration': [record['duration']],
+            'days_left': [input_values['days_left']]
+        })
+
+        input_processed = preprocessor.transform(input_df)
+        predicted_log_price = model.predict(input_processed)
+        predicted_price = np.expm1(predicted_log_price)[0]
+
+        st.success(f"### 💰 Predicted Base Ticket Price: ₹{predicted_price:,.0f}")
+    else:
+        st.error("⚠️ No matching flight found for this combination.")
