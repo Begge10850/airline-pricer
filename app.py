@@ -9,7 +9,7 @@ st.title("✈️ Internal Airline Ticket Pricing Advisor (INR ₹)")
 st.markdown("Predict base ticket prices based on route, airline, and time-of-day selections.")
 
 # --- Load Data and Model ---
-@st.cache_data
+@st.cache_resource
 def load_data_and_artifacts():
     df = pd.read_csv('data/Clean_Dataset_EDA_Processed.csv')
     preprocessor = joblib.load('preprocessor.joblib')
