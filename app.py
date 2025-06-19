@@ -10,7 +10,7 @@ st.title("✈️ Interactive Flight Price Explorer & Advisor")
 # --- Load Data and Model ---
 @st.cache_data
 def load_data_and_artifacts():
-    df = pd.read_csv('data/cleaned_flight_data.csv')
+    df = pd.read_csv('data/Clean_Dataset_EDA_Processed.csv')
     preprocessor = joblib.load('preprocessor.joblib')
     model = joblib.load('flight_price_model.joblib')
     return df, preprocessor, model
