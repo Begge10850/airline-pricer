@@ -27,6 +27,8 @@ defaults = {
     "arrival_time": "",
     "flight_class": "",
     "days_left": 15,
+    "duration_range": (0.5, 20.0),
+    "duration_selected": None,
     "submitted": False
 }
 for key, value in defaults.items():
@@ -37,6 +39,7 @@ for key, value in defaults.items():
 if st.button("🔄 Reset Form"):
     for key in defaults:
         st.session_state[key] = defaults[key]
+    st.rerun()
 
 # --- Inputs UI ---
 st.subheader("Fill the details below and press 'Predict Price'")
@@ -101,13 +104,30 @@ with col6:
 with col7:
     st.session_state.days_left = st.slider("Days Left Until Departure", min_value=1, max_value=50, value=st.session_state.days_left)
 
+# --- Dynamic Duration Slider ---
+duration_subset = df[
+    (df['source_city'] == st.session_state.source_city) &
+    (df['destination_city'] == st.session_state.destination_city) &
+    (df['airline'] == st.session_state.airline)
+]['duration']
+
+if not duration_subset.empty:
+    min_dur, max_dur = round(duration_subset.min(), 2), round(duration_subset.max(), 2)
+    st.session_state.duration_range = (min_dur, max_dur)
+    st.session_state.duration_selected = st.slider(
+        "Select Flight Duration (in hours)",
+        min_value=min_dur,
+        max_value=max_dur,
+        value=max_dur,
+        step=0.1
+    )
+
 # --- Submit Button ---
 if st.button("🔮 Predict Price"):
     st.session_state.submitted = True
 
 # --- Prediction ---
 if st.session_state.submitted:
-    # Validate required fields
     if (
         st.session_state.source_city and
         st.session_state.destination_city and
@@ -125,6 +145,8 @@ if st.session_state.submitted:
             query &= (df['departure_time'] == st.session_state.departure_time)
         else:
             query &= (df['arrival_time'] == st.session_state.arrival_time)
+
+        query &= (df['duration'] <= st.session_state.duration_selected)
 
         matched = df[query]
 
