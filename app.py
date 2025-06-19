@@ -133,8 +133,7 @@ if predict_button:
             predicted_price_log = model.predict(input_processed)
             predicted_price = np.expm1(predicted_price_log)[0]
 
-            st.success(f"**Predicted Base Ticket Price:** 
-# ₹{predicted_price:,.2f}")
+            st.success(f"**Predicted Base Ticket Price:** \n# ₹{predicted_price:,.2f}")
         else:
             st.error("No matching flight found with selected values.")
     else:
