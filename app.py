@@ -112,15 +112,17 @@ with col7:
         min_value=1,
         max_value=50,
         value=st.session_state.get("days_left_slider", 20),
-        step=1
+        step=1,
+        key="days_left_slider"
     )
 
 # --- DYNAMIC DURATION SLIDER ---
-if source_city and destination_city and airline:
+if source_city and destination_city and airline and (departure_time or arrival_time):
     duration_range_df = df[
         (df['source_city'] == source_city) &
         (df['destination_city'] == destination_city) &
-        (df['airline'] == airline)
+        (df['airline'] == airline) &
+        (df[time_col] == (departure_time if time_filter_type == "Departure" else arrival_time))
     ]
 
     if not duration_range_df.empty:
