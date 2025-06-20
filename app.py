@@ -44,7 +44,7 @@ if st.button("🔄 Reset Form"):
 col1, col2, col3 = st.columns(3)
 
 # --- SOURCE CITY ---
-st.session_state.source_city = col1.selectbox(
+col1.selectbox(
     "Source City",
     [""] + sorted(df['source_city'].unique()),
     index=0,
@@ -57,7 +57,7 @@ if st.session_state.source_city:
 else:
     destinations = []
 
-st.session_state.destination_city = col2.selectbox(
+col2.selectbox(
     "Destination City",
     [""] + sorted(destinations),
     index=0,
@@ -65,7 +65,7 @@ st.session_state.destination_city = col2.selectbox(
 )
 
 # --- TIME FILTER ---
-st.session_state.time_filter_type = col3.radio(
+col3.radio(
     "Filter by:",
     ["Departure", "Arrival"],
     horizontal=True,
@@ -85,9 +85,9 @@ else:
     time_options = []
 
 if st.session_state.time_filter_type == "Departure":
-    st.session_state.departure_time = col1.selectbox("Departure Time", [""] + sorted(time_options), key="departure_time")
+    col1.selectbox("Departure Time", [""] + sorted(time_options), key="departure_time")
 else:
-    st.session_state.arrival_time = col1.selectbox("Arrival Time", [""] + sorted(time_options), key="arrival_time")
+    col1.selectbox("Arrival Time", [""] + sorted(time_options), key="arrival_time")
 
 # --- AIRLINE ---
 if not df_filtered.empty:
@@ -96,13 +96,13 @@ if not df_filtered.empty:
 else:
     airline_options = []
 
-st.session_state.airline = col2.selectbox("Airline", [""] + sorted(airline_options), key="airline")
+col2.selectbox("Airline", [""] + sorted(airline_options), key="airline")
 
 # --- CLASS & DAYS LEFT ---
 col6, col7 = st.columns(2)
 
 with col6:
-    st.session_state.flight_class = st.selectbox("Class", sorted(df['class'].unique()), key="flight_class")
+    st.selectbox("Class", sorted(df['class'].unique()), key="flight_class")
 
 with col7:
     days_left_value = st.slider(
