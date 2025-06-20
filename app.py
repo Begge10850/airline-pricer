@@ -44,7 +44,7 @@ if st.button("🔄 Reset Form"):
 col1, col2, col3 = st.columns(3)
 
 # --- SOURCE CITY ---
-col1.selectbox(
+source_city = col1.selectbox(
     "Source City",
     [""] + sorted(df['source_city'].unique()),
     index=0,
@@ -52,12 +52,12 @@ col1.selectbox(
 )
 
 # --- DESTINATION CITY ---
-if st.session_state.source_city:
-    destinations = df[df['source_city'] == st.session_state.source_city]['destination_city'].unique()
+if source_city:
+    destinations = df[df['source_city'] == source_city]['destination_city'].unique()
 else:
     destinations = []
 
-col2.selectbox(
+destination_city = col2.selectbox(
     "Destination City",
     [""] + sorted(destinations),
     index=0,
@@ -65,7 +65,7 @@ col2.selectbox(
 )
 
 # --- TIME FILTER ---
-col3.radio(
+time_filter_type = col3.radio(
     "Filter by:",
     ["Departure", "Arrival"],
     horizontal=True,
@@ -73,54 +73,54 @@ col3.radio(
 )
 
 # --- TIME OPTIONS ---
-time_col = 'departure_time' if st.session_state.time_filter_type == 'Departure' else 'arrival_time'
-if st.session_state.source_city and st.session_state.destination_city:
+time_col = 'departure_time' if time_filter_type == 'Departure' else 'arrival_time'
+if source_city and destination_city:
     df_filtered = df[
-        (df['source_city'] == st.session_state.source_city) &
-        (df['destination_city'] == st.session_state.destination_city)
+        (df['source_city'] == source_city) &
+        (df['destination_city'] == destination_city)
     ]
     time_options = df_filtered[time_col].unique()
 else:
     df_filtered = pd.DataFrame()
     time_options = []
 
-if st.session_state.time_filter_type == "Departure":
-    col1.selectbox("Departure Time", [""] + sorted(time_options), key="departure_time")
+if time_filter_type == "Departure":
+    departure_time = col1.selectbox("Departure Time", [""] + sorted(time_options), key="departure_time")
+    arrival_time = ""
 else:
-    col1.selectbox("Arrival Time", [""] + sorted(time_options), key="arrival_time")
+    arrival_time = col1.selectbox("Arrival Time", [""] + sorted(time_options), key="arrival_time")
+    departure_time = ""
 
 # --- AIRLINE ---
 if not df_filtered.empty:
-    airline_filter = df_filtered[df_filtered[time_col] == st.session_state[time_col]]
+    airline_filter = df_filtered[df_filtered[time_col] == (departure_time if time_filter_type == "Departure" else arrival_time)]
     airline_options = airline_filter['airline'].unique()
 else:
     airline_options = []
 
-col2.selectbox("Airline", [""] + sorted(airline_options), key="airline")
+airline = col2.selectbox("Airline", [""] + sorted(airline_options), key="airline")
 
 # --- CLASS & DAYS LEFT ---
 col6, col7 = st.columns(2)
 
 with col6:
-    st.selectbox("Class", sorted(df['class'].unique()), key="flight_class")
+    flight_class = st.selectbox("Class", sorted(df['class'].unique()), key="flight_class")
 
 with col7:
     days_left_value = st.slider(
         "Days Left Until Departure",
         min_value=1,
         max_value=50,
-        value=st.session_state.days_left_slider,
-        step=1,
-        key="days_left_slider"
+        value=st.session_state.get("days_left_slider", 20),
+        step=1
     )
-    st.session_state.days_left_slider = days_left_value
 
 # --- DYNAMIC DURATION SLIDER ---
-if st.session_state.source_city and st.session_state.destination_city and st.session_state.airline:
+if source_city and destination_city and airline:
     duration_range_df = df[
-        (df['source_city'] == st.session_state.source_city) &
-        (df['destination_city'] == st.session_state.destination_city) &
-        (df['airline'] == st.session_state.airline)
+        (df['source_city'] == source_city) &
+        (df['destination_city'] == destination_city) &
+        (df['airline'] == airline)
     ]
 
     if not duration_range_df.empty:
@@ -139,34 +139,31 @@ if st.session_state.source_city and st.session_state.destination_city and st.ses
             step=0.1,
             key="duration_slider"
         )
-        st.session_state.duration_slider = selected_duration
 
 # --- PREDICT BUTTON ---
 predict_button = st.button("📊 Predict Price")
 
 # --- PREDICTION LOGIC ---
 if predict_button:
-    if st.session_state.source_city and st.session_state.destination_city and st.session_state.airline and \
-       (st.session_state.departure_time or st.session_state.arrival_time):
-
-        selected_time = st.session_state.departure_time if st.session_state.time_filter_type == "Departure" else st.session_state.arrival_time
+    if source_city and destination_city and airline and (departure_time or arrival_time):
+        selected_time = departure_time if time_filter_type == "Departure" else arrival_time
         filtered_row = df_filtered[
-            (df_filtered['airline'] == st.session_state.airline) &
+            (df_filtered['airline'] == airline) &
             (df_filtered[time_col] == selected_time)
         ]
 
         if not filtered_row.empty:
             flight_row = filtered_row.iloc[0]
             input_data = pd.DataFrame({
-                'airline': [st.session_state.airline],
-                'source_city': [st.session_state.source_city],
+                'airline': [airline],
+                'source_city': [source_city],
                 'departure_time': [flight_row['departure_time']],
                 'stops': [flight_row['stops']],
                 'arrival_time': [flight_row['arrival_time']],
-                'destination_city': [st.session_state.destination_city],
-                'class': [st.session_state.flight_class.lower()],
+                'destination_city': [destination_city],
+                'class': [flight_class.lower()],
                 'duration': [st.session_state.duration_slider],
-                'days_left': [st.session_state.days_left_slider],
+                'days_left': [days_left_value],
             })
 
             input_processed = preprocessor.transform(input_data)
