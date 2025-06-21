@@ -148,8 +148,10 @@ if st.session_state.get("prediction_results"):
     st.subheader("🧠 LLM Explanation")
     try:
         explainer = shap.TreeExplainer(model)
-        # Fix SHAP error: convert to float before SHAP
+
+        # ✅ FIX: ensure numeric input for SHAP
         input_array = input_processed.astype(np.float32)
+
         shap_values = explainer(input_array)
 
         explanation_text = (
@@ -169,5 +171,7 @@ if st.session_state.get("prediction_results"):
         )
 
         st.success(response.choices[0].message.content.strip())
+
     except Exception as e:
         st.error(f"LLM explanation could not be generated. Error:\n\n{e}")
+
