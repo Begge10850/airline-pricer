@@ -3,121 +3,156 @@ import pandas as pd
 import numpy as np
 import joblib
 import shap
-import openai
-import os
-from dotenv import load_dotenv
 
-# Load OpenAI key
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
+# --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
 st.title("✈️ Dynamic Pricing & Revenue Advisor")
+st.markdown("Predict base ticket prices and receive an optimized recommendation to maximize revenue.")
 
-# Load data, model, preprocessor
+# --- Load Model and Preprocessor ---
 @st.cache_resource
-def load_assets():
-    df = pd.read_csv("data/Clean_Dataset_EDA_Processed.csv")
+def load_data_and_artifacts():
+    df = pd.read_csv("data/Clean_Dataset_EDA_Processed.csv") 
     preprocessor = joblib.load("preprocessor.joblib")
     model = joblib.load("flight_price_model.joblib")
     return df, preprocessor, model
 
-df, preprocessor, model = load_assets()
+try:
+    df, preprocessor, model = load_data_and_artifacts()
+except FileNotFoundError:
+    st.error("Required model or data files not found.")
+    st.stop()
 
-# Optimizer
-def find_optimal_price(base_price, elasticity=1.5):
+# --- Optimizer ---
+def find_optimal_price(base_price, elasticity_factor=1.5, price_range_pct=0.25):
+    best_price = base_price
+    max_revenue = 0
     base_demand = 100
-    price_range = np.linspace(base_price * 0.8, base_price * 1.2, 100)
-    best_price, max_revenue = base_price, 0
-
+    base_revenue = base_price * base_demand
+    price_range = np.linspace(base_price * (1 - price_range_pct), base_price * (1 + price_range_pct), 100)
     for price in price_range:
-        demand_factor = 1 - ((price - base_price) / base_price) * elasticity
-        demand = max(0, base_demand * demand_factor)
-        revenue = price * demand
-        if revenue > max_revenue:
-            max_revenue = revenue
+        price_diff_percent = (price - base_price) / base_price
+        demand_factor = 1 - (price_diff_percent * elasticity_factor)
+        demand_at_price = max(0, base_demand * demand_factor)
+        expected_revenue = price * demand_at_price
+        if expected_revenue > max_revenue:
+            max_revenue = expected_revenue
             best_price = price
+    uplift = ((max_revenue - base_revenue) / base_revenue) * 100 if base_revenue > 0 else 0
+    return {"optimized_price": best_price, "uplift_percent": uplift}
 
-    uplift = ((max_revenue - base_price * base_demand) / (base_price * base_demand)) * 100
-    return round(best_price), round(uplift, 2)
+# --- UI ---
+defaults = {
+    "source_city": "", "destination_city": "", "airline": "",
+    "time_filter_type": "Departure", "departure_time": "", "arrival_time": "",
+    "flight_class": "", "days_left": 15, "submitted": False, 
+    "prediction_results": None
+}
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
-# UI
-st.markdown("#### Fill in the flight details below:")
+if st.button("🔄 Reset Form"):
+    for key, value in defaults.items():
+        st.session_state[key] = value
+
+# --- Input ---
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    source = st.selectbox("Source City", sorted(df['source_city'].unique()))
-    destination = st.selectbox("Destination City", sorted(df[df['source_city'] == source]['destination_city'].unique()))
+    st.subheader("1. Route")
+    source_city_options = [""] + sorted(df['source_city'].unique())
+    st.session_state.source_city = st.selectbox("Source City", source_city_options)
+    if st.session_state.source_city:
+        destination_options = [""] + sorted(df[df['source_city'] == st.session_state.source_city]['destination_city'].unique())
+        st.session_state.destination_city = st.selectbox("Destination City", destination_options)
+
 with col2:
-    airline = st.selectbox("Airline", sorted(df['airline'].unique()))
-    departure_time = st.selectbox("Departure Time", sorted(df['departure_time'].unique()))
-    arrival_time = st.selectbox("Arrival Time", sorted(df['arrival_time'].unique()))
+    st.subheader("2. Airline & Time")
+    if st.session_state.source_city and st.session_state.destination_city:
+        airline_options = [""] + sorted(df[(df['source_city'] == st.session_state.source_city) & (df['destination_city'] == st.session_state.destination_city)]['airline'].unique())
+        st.session_state.airline = st.selectbox("Airline", airline_options)
+        st.session_state.time_filter_type = st.radio("Filter by:", ("Departure", "Arrival"), horizontal=True)
+        if st.session_state.time_filter_type == "Departure":
+            dep_options = [""] + sorted(df['departure_time'].unique())
+            st.session_state.departure_time = st.selectbox("Departure Time", dep_options)
+        else:
+            arr_options = [""] + sorted(df['arrival_time'].unique())
+            st.session_state.arrival_time = st.selectbox("Arrival Time", arr_options)
+
 with col3:
-    cls = st.selectbox("Class", sorted(df['class'].unique()))
-    stops = st.selectbox("Stops", sorted(df['stops'].unique()))
-    duration = st.slider("Duration (hours)", 1.0, 30.0, step=0.5)
-    days_left = st.slider("Days Left", 1, 60)
+    st.subheader("3. Pricing Scenario")
+    class_options = [""] + sorted(df['class'].unique())
+    st.session_state.flight_class = st.selectbox("Class", class_options)
+    st.session_state.days_left = st.slider("Days Left Until Departure", 1, 50, st.session_state.days_left)
 
-# Run Prediction
-if st.button("🔮 Predict & Explain"):
-    input_df = pd.DataFrame({
-        'airline': [airline], 'source_city': [source],
-        'departure_time': [departure_time], 'stops': [stops],
-        'arrival_time': [arrival_time], 'destination_city': [destination],
-        'class': [cls], 'duration': [duration], 'days_left': [days_left]
-    })
+# --- Predict ---
+if st.button("🔮 Predict & Optimize Price", type="primary"):
+    if not all([st.session_state.source_city, st.session_state.destination_city, st.session_state.airline, st.session_state.flight_class]):
+        st.warning("Please fill all dropdowns before predicting.")
+    else:
+        query = (
+            (df['source_city'] == st.session_state.source_city) &
+            (df['destination_city'] == st.session_state.destination_city) &
+            (df['airline'] == st.session_state.airline)
+        )
+        if st.session_state.time_filter_type == "Departure" and st.session_state.departure_time:
+            query &= (df['departure_time'] == st.session_state.departure_time)
+        elif st.session_state.time_filter_type == "Arrival" and st.session_state.arrival_time:
+            query &= (df['arrival_time'] == st.session_state.arrival_time)
 
+        matched = df[query]
+
+        if not matched.empty:
+            record = matched.iloc[0]
+            input_df = pd.DataFrame({
+                'airline': [record['airline']], 'source_city': [record['source_city']],
+                'departure_time': [record['departure_time']], 'stops': [record['stops']],
+                'arrival_time': [record['arrival_time']], 'destination_city': [record['destination_city']],
+                'class': [st.session_state.flight_class.lower()], 'duration': [record['duration']],
+                'days_left': [st.session_state.days_left]
+            })
+
+            input_processed = preprocessor.transform(input_df)
+            predicted_log_price = model.predict(input_processed)
+            predicted_base_price = np.expm1(predicted_log_price)[0]
+
+            optimization_result = find_optimal_price(predicted_base_price)
+
+            st.session_state['prediction_results'] = {
+                "base_price": predicted_base_price,
+                "optimized_price": optimization_result['optimized_price'],
+                "uplift": optimization_result['uplift_percent'],
+                "input_df": input_df,
+                "input_processed": input_processed
+            }
+        else:
+            st.error("No matching flight data found for the selected filters.")
+            st.session_state['prediction_results'] = None
+
+# --- Results ---
+if st.session_state.get('prediction_results'):
+    results = st.session_state['prediction_results']
+    st.subheader("Pricing Recommendation")
+    res_col1, res_col2 = st.columns(2)
+    with res_col1:
+        st.metric(label="Predicted Base Price", value=f"₹{results['base_price']:,.0f}")
+    with res_col2:
+        st.metric(label="✅ Optimized Price", value=f"₹{results['optimized_price']:,.0f}", delta=f"{results['uplift']:.2f}%")
+
+    st.subheader("🧮 SHAP Feature Contributions")
     try:
-        input_transformed = preprocessor.transform(input_df)
-        log_price = model.predict(input_transformed)[0]
-        base_price = np.expm1(log_price)
-        optimized_price, uplift = find_optimal_price(base_price)
-
-        st.metric("Base Price", f"₹{round(base_price)}")
-        st.metric("Optimized Price", f"₹{optimized_price}", delta=f"{uplift}%")
-
-        # SHAP
         explainer = shap.Explainer(model)
-        shap_vals = explainer(input_transformed)
-        base_log = shap_vals.base_values[0]
-        shap_contribs = shap_vals.values[0]
-
-        # Map back to user input
-        transformed_cols = shap_vals.feature_names
-        original_cols = input_df.columns.tolist()
-        df_sparse = pd.DataFrame(input_transformed.toarray(), columns=transformed_cols)
-
-        # Group by original columns
-        contrib_dict = {}
-        for feat in original_cols:
-            related = [col for col in df_sparse.columns if col.startswith(f"cat_{feat}_") or col == feat]
-            log_contrib = sum([shap_contribs[df_sparse.columns.get_loc(col)] for col in related])
-            price_contrib = np.expm1(base_log + log_contrib) - np.expm1(base_log)
-            contrib_dict[feat] = price_contrib
-
-        # LLM Explanation Prompt
-        items = [f"{k} contributes ₹{v:,.0f}" for k, v in contrib_dict.items()]
-        user_friendly_input = "\n".join(items)
-        prompt = f"""
-You are a pricing analyst AI. Based on SHAP values, explain to a business user how each input affected the ticket price prediction.
-Here is the breakdown:
-{user_friendly_input}
-
-Generate a human-friendly explanation.
-"""
-
-        with st.spinner("Generating AI Explanation..."):
-            try:
-                completion = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[{"role": "system", "content": "You are a helpful pricing analyst AI."},
-                              {"role": "user", "content": prompt}]
-                )
-                explanation = completion.choices[0].message.content.strip()
-                st.subheader("🧠 LLM Explanation")
-                st.write(explanation)
-            except Exception as e:
-                st.warning(f"LLM explanation could not be generated. Error:\n\n{str(e)}")
-
+        shap_vals = explainer(results['input_processed'])
+        base = np.expm1(shap_vals.base_values[0])
+        contrib = pd.DataFrame({
+            "Feature": shap_vals.feature_names,
+            "SHAP Value": shap_vals.values[0],
+        })
+        contrib["Contribution (₹)"] = np.expm1(shap_vals.base_values[0] + contrib["SHAP Value"]) - base
+        contrib["Contribution (₹)"] = contrib["Contribution (₹)"].round(2)
+        contrib = contrib.sort_values("Contribution (₹)", ascending=False)
+        st.dataframe(contrib[["Feature", "Contribution (₹)"]])
+        st.caption("Sum of contributions explains the final predicted ticket price.")
     except Exception as e:
-        st.error(f"Prediction failed: {str(e)}")
+        st.error(f"SHAP explanation failed: {e}")
