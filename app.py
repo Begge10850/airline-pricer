@@ -139,6 +139,7 @@ if st.session_state.get('prediction_results'):
         st.metric(label="Predicted Base Price", value=f"₹{results['base_price']:,.0f}")
     with res_col2:
         st.metric(label="✅ Optimized Price", value=f"₹{results['optimized_price']:,.0f}", delta=f"{results['uplift']:.2f}%")
+    st.write(results['input_processed'].dtype)
 
     st.subheader("🧮 SHAP Feature Contributions")
     try:
