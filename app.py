@@ -147,25 +147,45 @@ if st.button("🔮 Predict & Optimize Price", type="primary"):
 if st.session_state.get('prediction_results'):
     results = st.session_state['prediction_results']
     st.subheader("Pricing Recommendation")
+
     res_col1, res_col2 = st.columns(2)
     with res_col1:
         st.metric(label="Predicted Base Price", value=f"₹{results['base_price']:,.0f}")
     with res_col2:
         st.metric(label="✅ Optimized Price", value=f"₹{results['optimized_price']:,.0f}", delta=f"{results['uplift']:.2f}%")
 
-    st.subheader("📊 SHAP Feature Contributions")
+    st.subheader("🧮 SHAP Feature Contributions")
     try:
+        input_processed = results['input_processed'].astype(np.float32)
         explainer = shap.Explainer(model)
-        shap_vals = explainer(results['input_processed'])
+        shap_vals = explainer(input_processed)
+
+        # Get feature names
+        encoded_feature_names = preprocessor.get_feature_names_out()
+        
+        # Map encoded names back to original columns
+        def simplify_feature_name(name):
+            if "_" in name:
+                return name.split("_")[1]  # e.g., 'cat_source_city_Delhi' -> 'source_city'
+            return name
+
+        original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
+        grouped = {}
+
         base = np.expm1(shap_vals.base_values[0])
-        contrib = pd.DataFrame({
-            "Feature": shap_vals.feature_names,
-            "SHAP Value": shap_vals.values[0],
-        })
-        contrib["Contribution (₹)"] = np.expm1(shap_vals.base_values[0] + contrib["SHAP Value"]) - base
-        contrib["Contribution (₹)"] = contrib["Contribution (₹)"].round(2)
-        contrib = contrib.sort_values("Contribution (₹)", ascending=False)
-        st.dataframe(contrib[["Feature", "Contribution (₹)"]])
-        st.caption("Sum of contributions explains the final predicted ticket price.")
+        contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - base
+
+        # Group contributions by original column
+        for feature, original_name, value in zip(encoded_feature_names, original_feature_names, contrib_raw):
+            grouped.setdefault(original_name, 0)
+            grouped[original_name] += value
+
+        contrib_df = pd.DataFrame(list(grouped.items()), columns=["Original Feature", "Contribution (₹)"])
+        contrib_df["Contribution (₹)"] = contrib_df["Contribution (₹)"].round(2)
+        contrib_df = contrib_df.sort_values("Contribution (₹)", ascending=False)
+
+        st.dataframe(contrib_df)
+        st.caption("Sum of contributions explains the predicted ticket price. Feature contributions are grouped by original input fields.")
     except Exception as e:
         st.error(f"SHAP explanation failed: {e}")
+
