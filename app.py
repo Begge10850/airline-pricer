@@ -41,7 +41,7 @@ def find_optimal_price(base_price, elasticity_factor=1.5, price_range_pct=0.25):
     uplift = ((max_revenue - base_revenue) / base_revenue) * 100 if base_revenue > 0 else 0
     return {"optimized_price": best_price, "uplift_percent": uplift}
 
-# --- UI ---
+# --- UI State Defaults ---
 defaults = {
     "source_city": "", "destination_city": "", "airline": "",
     "time_filter_type": "Departure", "departure_time": "", "arrival_time": "",
@@ -56,7 +56,7 @@ if st.button("🔄 Reset Form"):
     for key, value in defaults.items():
         st.session_state[key] = value
 
-# --- Input ---
+# --- Inputs ---
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -70,7 +70,10 @@ with col1:
 with col2:
     st.subheader("2. Airline & Time")
     if st.session_state.source_city and st.session_state.destination_city:
-        airline_options = [""] + sorted(df[(df['source_city'] == st.session_state.source_city) & (df['destination_city'] == st.session_state.destination_city)]['airline'].unique())
+        airline_options = [""] + sorted(df[
+            (df['source_city'] == st.session_state.source_city) & 
+            (df['destination_city'] == st.session_state.destination_city)
+        ]['airline'].unique())
         st.session_state.airline = st.selectbox("Airline", airline_options)
         st.session_state.time_filter_type = st.radio("Filter by:", ("Departure", "Arrival"), horizontal=True)
         if st.session_state.time_filter_type == "Departure":
@@ -86,7 +89,7 @@ with col3:
     st.session_state.flight_class = st.selectbox("Class", class_options)
     st.session_state.days_left = st.slider("Days Left Until Departure", 1, 50, st.session_state.days_left)
 
-# --- Predict ---
+# --- Prediction ---
 if st.button("🔮 Predict & Optimize Price", type="primary"):
     if not all([st.session_state.source_city, st.session_state.destination_city, st.session_state.airline, st.session_state.flight_class]):
         st.warning("Please fill all dropdowns before predicting.")
@@ -106,14 +109,24 @@ if st.button("🔮 Predict & Optimize Price", type="primary"):
         if not matched.empty:
             record = matched.iloc[0]
             input_df = pd.DataFrame({
-                'airline': [record['airline']], 'source_city': [record['source_city']],
-                'departure_time': [record['departure_time']], 'stops': [record['stops']],
-                'arrival_time': [record['arrival_time']], 'destination_city': [record['destination_city']],
-                'class': [st.session_state.flight_class.lower()], 'duration': [record['duration']],
+                'airline': [record['airline']],
+                'source_city': [record['source_city']],
+                'departure_time': [record['departure_time']],
+                'stops': [record['stops']],
+                'arrival_time': [record['arrival_time']],
+                'destination_city': [record['destination_city']],
+                'class': [st.session_state.flight_class.lower()],
+                'duration': [record['duration']],
                 'days_left': [st.session_state.days_left]
             })
 
-            input_processed = preprocessor.transform(input_df)
+            input_processed_raw = preprocessor.transform(input_df)
+            if hasattr(input_processed_raw, 'toarray'):
+                input_processed = input_processed_raw.toarray()
+            else:
+                input_processed = input_processed_raw
+            input_processed = input_processed.astype(np.float32)
+
             predicted_log_price = model.predict(input_processed)
             predicted_base_price = np.expm1(predicted_log_price)[0]
 
@@ -139,13 +152,11 @@ if st.session_state.get('prediction_results'):
         st.metric(label="Predicted Base Price", value=f"₹{results['base_price']:,.0f}")
     with res_col2:
         st.metric(label="✅ Optimized Price", value=f"₹{results['optimized_price']:,.0f}", delta=f"{results['uplift']:.2f}%")
-    st.write(results['input_processed'].dtype)
 
-    st.subheader("🧮 SHAP Feature Contributions")
+    st.subheader("📊 SHAP Feature Contributions")
     try:
         explainer = shap.Explainer(model)
-        X_numeric = results['input_processed'].astype(np.float32)  # Fix dtype issue
-        shap_vals = explainer(X_numeric)
+        shap_vals = explainer(results['input_processed'])
         base = np.expm1(shap_vals.base_values[0])
         contrib = pd.DataFrame({
             "Feature": shap_vals.feature_names,
@@ -158,4 +169,3 @@ if st.session_state.get('prediction_results'):
         st.caption("Sum of contributions explains the final predicted ticket price.")
     except Exception as e:
         st.error(f"SHAP explanation failed: {e}")
-
