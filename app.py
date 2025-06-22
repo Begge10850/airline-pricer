@@ -143,7 +143,8 @@ if st.session_state.get('prediction_results'):
     st.subheader("🧮 SHAP Feature Contributions")
     try:
         explainer = shap.Explainer(model)
-        shap_vals = explainer(results['input_processed'])
+        X_numeric = results['input_processed'].astype(np.float32)  # Fix dtype issue
+        shap_vals = explainer(X_numeric)
         base = np.expm1(shap_vals.base_values[0])
         contrib = pd.DataFrame({
             "Feature": shap_vals.feature_names,
@@ -156,3 +157,4 @@ if st.session_state.get('prediction_results'):
         st.caption("Sum of contributions explains the final predicted ticket price.")
     except Exception as e:
         st.error(f"SHAP explanation failed: {e}")
+
