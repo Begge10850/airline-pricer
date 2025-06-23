@@ -188,4 +188,3 @@ if st.session_state.get('prediction_results'):
         st.caption("Sum of contributions explains the predicted ticket price. Feature contributions are grouped by original input fields.")
     except Exception as e:
         st.error(f"SHAP explanation failed: {e}")
-
