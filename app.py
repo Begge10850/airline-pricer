@@ -8,7 +8,7 @@ import requests
 
 # --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
-st.title("\u2708\ufe0f Dynamic Pricing & Revenue Advisor")
+st.title("✈️ Dynamic Pricing & Revenue Advisor")
 st.markdown("Predict base ticket prices and receive an optimized recommendation to maximize revenue.")
 
 # --- Download Helpers ---
@@ -16,17 +16,20 @@ MODEL_PATH = "flight_price_model.joblib"
 PREPROCESSOR_PATH = "preprocessor.joblib"
 CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"  # Must exist in repo
 
-def silent_download_from_azure(url, destination):
+def download_from_azure(url, destination):
     if not os.path.exists(destination):
+        st.info(f"⏬ Downloading {destination} from Azure...")
         response = requests.get(url)
         with open(destination, 'wb') as f:
             f.write(response.content)
+        st.success(f"{destination} downloaded.")
 
 # --- Load Artifacts ---
 @st.cache_resource
 def load_data_and_artifacts():
-    silent_download_from_azure(st.secrets["azure"]["model_url"], MODEL_PATH)
-    silent_download_from_azure(st.secrets["azure"]["preprocessor_url"], PREPROCESSOR_PATH)
+    download_from_azure(st.secrets["azure"]["model_url"], MODEL_PATH)
+    download_from_azure(st.secrets["azure"]["preprocessor_url"], PREPROCESSOR_PATH)
+
     df = pd.read_csv(CSV_PATH)
     preprocessor = joblib.load(PREPROCESSOR_PATH)
     model = joblib.load(MODEL_PATH)
@@ -67,7 +70,7 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-if st.button("\ud83d\udd04 Reset Form"):
+if st.button("🔄 Reset Form"):
     for key, value in defaults.items():
         st.session_state[key] = value
 
@@ -105,7 +108,7 @@ with col3:
     st.session_state.days_left = st.slider("Days Left Until Departure", 1, 50, st.session_state.days_left)
 
 # --- Prediction ---
-if st.button("\ud83e\udd2e Predict & Optimize Price", type="primary"):
+if st.button("🔮 Predict & Optimize Price", type="primary"):
     if not all([st.session_state.source_city, st.session_state.destination_city, st.session_state.airline, st.session_state.flight_class]):
         st.warning("Please fill all dropdowns before predicting.")
     else:
