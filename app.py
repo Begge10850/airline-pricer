@@ -3,18 +3,36 @@ import pandas as pd
 import numpy as np
 import joblib
 import shap
+import os
+import requests
 
 # --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
 st.title("✈️ Dynamic Pricing & Revenue Advisor")
 st.markdown("Predict base ticket prices and receive an optimized recommendation to maximize revenue.")
 
-# --- Load Model and Preprocessor ---
+# --- Download Helpers ---
+MODEL_PATH = "flight_price_model.joblib"
+PREPROCESSOR_PATH = "preprocessor.joblib"
+CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"  # Must exist in repo
+
+def download_from_azure(url, destination):
+    if not os.path.exists(destination):
+        st.info(f"⏬ Downloading {destination} from Azure...")
+        response = requests.get(url)
+        with open(destination, 'wb') as f:
+            f.write(response.content)
+        st.success(f"{destination} downloaded.")
+
+# --- Load Artifacts ---
 @st.cache_resource
 def load_data_and_artifacts():
-    df = pd.read_csv("data/Clean_Dataset_EDA_Processed.csv") 
-    preprocessor = joblib.load("preprocessor.joblib")
-    model = joblib.load("flight_price_model.joblib")
+    download_from_azure(st.secrets["azure"]["model_url"], MODEL_PATH)
+    download_from_azure(st.secrets["azure"]["preprocessor_url"], PREPROCESSOR_PATH)
+
+    df = pd.read_csv(CSV_PATH)
+    preprocessor = joblib.load(PREPROCESSOR_PATH)
+    model = joblib.load(MODEL_PATH)
     return df, preprocessor, model
 
 try:
@@ -45,7 +63,7 @@ def find_optimal_price(base_price, elasticity_factor=1.5, price_range_pct=0.25):
 defaults = {
     "source_city": "", "destination_city": "", "airline": "",
     "time_filter_type": "Departure", "departure_time": "", "arrival_time": "",
-    "flight_class": "", "days_left": 15, "submitted": False, 
+    "flight_class": "", "days_left": 15, "submitted": False,
     "prediction_results": None
 }
 for key, value in defaults.items():
@@ -71,7 +89,7 @@ with col2:
     st.subheader("2. Airline & Time")
     if st.session_state.source_city and st.session_state.destination_city:
         airline_options = [""] + sorted(df[
-            (df['source_city'] == st.session_state.source_city) & 
+            (df['source_city'] == st.session_state.source_city) &
             (df['destination_city'] == st.session_state.destination_city)
         ]['airline'].unique())
         st.session_state.airline = st.selectbox("Airline", airline_options)
@@ -121,10 +139,7 @@ if st.button("🔮 Predict & Optimize Price", type="primary"):
             })
 
             input_processed_raw = preprocessor.transform(input_df)
-            if hasattr(input_processed_raw, 'toarray'):
-                input_processed = input_processed_raw.toarray()
-            else:
-                input_processed = input_processed_raw
+            input_processed = input_processed_raw.toarray() if hasattr(input_processed_raw, 'toarray') else input_processed_raw
             input_processed = input_processed.astype(np.float32)
 
             predicted_log_price = model.predict(input_processed)
@@ -160,22 +175,13 @@ if st.session_state.get('prediction_results'):
         explainer = shap.Explainer(model)
         shap_vals = explainer(input_processed)
 
-        # Get feature names
         encoded_feature_names = preprocessor.get_feature_names_out()
-        
-        # Map encoded names back to original columns
-        def simplify_feature_name(name):
-            if "_" in name:
-                return name.split("_")[1]  # e.g., 'cat_source_city_Delhi' -> 'source_city'
-            return name
-
         original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
         grouped = {}
 
         base = np.expm1(shap_vals.base_values[0])
         contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - base
 
-        # Group contributions by original column
         for feature, original_name, value in zip(encoded_feature_names, original_feature_names, contrib_raw):
             grouped.setdefault(original_name, 0)
             grouped[original_name] += value
