@@ -4,40 +4,42 @@ import numpy as np
 import joblib
 import shap
 import os
-import requests
+import urllib.request
+
+# --- Constants ---
+MODEL_URL = st.secrets["azure"]["model_url"]
+PREPROCESSOR_URL = st.secrets["azure"]["preprocessor_url"]
+DATA_URL = st.secrets["azure"]["data_url"]
+
+MODEL_PATH = "flight_price_model.joblib"
+PREPROCESSOR_PATH = "preprocessor.joblib"
+DATA_PATH = "data/Clean_Dataset_EDA_Processed.csv"
 
 # --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
 st.title("✈️ Dynamic Pricing & Revenue Advisor")
 st.markdown("Predict base ticket prices and receive an optimized recommendation to maximize revenue.")
 
-# --- Download Helpers ---
-MODEL_PATH = "flight_price_model.joblib"
-PREPROCESSOR_PATH = "preprocessor.joblib"
-CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"  # Must exist in repo
-
-def download_from_azure(url, destination):
-    if not os.path.exists(destination):
-        st.info(f"⏬ Downloading {destination} from Azure...")
-        response = requests.get(url)
-        with open(destination, 'wb') as f:
-            f.write(response.content)
-        st.success(f"{destination} downloaded.")
+# --- Download Function ---
+def download_from_azure(url, save_path):
+    if not os.path.exists(save_path):
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        urllib.request.urlretrieve(url, save_path)
 
 # --- Load Artifacts ---
 @st.cache_resource
 def load_data_and_artifacts():
-    download_from_azure(st.secrets["azure"]["model_url"], MODEL_PATH)
-    download_from_azure(st.secrets["azure"]["preprocessor_url"], PREPROCESSOR_PATH)
-
-    df = pd.read_csv(CSV_PATH)
+    download_from_azure(MODEL_URL, MODEL_PATH)
+    download_from_azure(PREPROCESSOR_URL, PREPROCESSOR_PATH)
+    download_from_azure(DATA_URL, DATA_PATH)
+    df = pd.read_csv(DATA_PATH)
     preprocessor = joblib.load(PREPROCESSOR_PATH)
     model = joblib.load(MODEL_PATH)
     return df, preprocessor, model
 
 try:
     df, preprocessor, model = load_data_and_artifacts()
-except FileNotFoundError:
+except Exception:
     st.error("Required model or data files not found.")
     st.stop()
 
@@ -82,16 +84,16 @@ with col1:
     source_city_options = [""] + sorted(df['source_city'].unique())
     st.session_state.source_city = st.selectbox("Source City", source_city_options)
     if st.session_state.source_city:
-        destination_options = [""] + sorted(df[df['source_city'] == st.session_state.source_city]['destination_city'].unique())
+        destination_options = [""] + sorted(
+            df[df['source_city'] == st.session_state.source_city]['destination_city'].unique())
         st.session_state.destination_city = st.selectbox("Destination City", destination_options)
 
 with col2:
     st.subheader("2. Airline & Time")
     if st.session_state.source_city and st.session_state.destination_city:
-        airline_options = [""] + sorted(df[
-            (df['source_city'] == st.session_state.source_city) &
-            (df['destination_city'] == st.session_state.destination_city)
-        ]['airline'].unique())
+        airline_options = [""] + sorted(
+            df[(df['source_city'] == st.session_state.source_city) &
+               (df['destination_city'] == st.session_state.destination_city)]['airline'].unique())
         st.session_state.airline = st.selectbox("Airline", airline_options)
         st.session_state.time_filter_type = st.radio("Filter by:", ("Departure", "Arrival"), horizontal=True)
         if st.session_state.time_filter_type == "Departure":
@@ -109,7 +111,8 @@ with col3:
 
 # --- Prediction ---
 if st.button("🔮 Predict & Optimize Price", type="primary"):
-    if not all([st.session_state.source_city, st.session_state.destination_city, st.session_state.airline, st.session_state.flight_class]):
+    if not all([st.session_state.source_city, st.session_state.destination_city,
+                st.session_state.airline, st.session_state.flight_class]):
         st.warning("Please fill all dropdowns before predicting.")
     else:
         query = (
@@ -167,7 +170,8 @@ if st.session_state.get('prediction_results'):
     with res_col1:
         st.metric(label="Predicted Base Price", value=f"₹{results['base_price']:,.0f}")
     with res_col2:
-        st.metric(label="✅ Optimized Price", value=f"₹{results['optimized_price']:,.0f}", delta=f"{results['uplift']:.2f}%")
+        st.metric(label="✅ Optimized Price", value=f"₹{results['optimized_price']:,.0f}",
+                  delta=f"{results['uplift']:.2f}%")
 
     st.subheader("🧮 SHAP Feature Contributions")
     try:
@@ -177,11 +181,10 @@ if st.session_state.get('prediction_results'):
 
         encoded_feature_names = preprocessor.get_feature_names_out()
         original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
+
+        contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - np.expm1(shap_vals.base_values[0])
+
         grouped = {}
-
-        base = np.expm1(shap_vals.base_values[0])
-        contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - base
-
         for feature, original_name, value in zip(encoded_feature_names, original_feature_names, contrib_raw):
             grouped.setdefault(original_name, 0)
             grouped[original_name] += value
