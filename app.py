@@ -8,7 +8,7 @@ import requests
 
 # --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
-st.title("✈️ Dynamic Pricing & Revenue Advisor")
+st.title("\u2708\ufe0f Dynamic Pricing & Revenue Advisor")
 st.markdown("Predict base ticket prices and receive an optimized recommendation to maximize revenue.")
 
 # --- Download Helpers ---
@@ -25,16 +25,8 @@ def silent_download_from_azure(url, destination):
 # --- Load Artifacts ---
 @st.cache_resource
 def load_data_and_artifacts():
-    try:
-        model_url = st.secrets["azure"]["model_url"]
-        preprocessor_url = st.secrets["azure"]["preprocessor_url"]
-    except KeyError:
-        st.error("⚠️ Azure model URLs are missing. Please set them in Streamlit Cloud secrets.")
-        st.stop()
-
-    silent_download_from_azure(model_url, MODEL_PATH)
-    silent_download_from_azure(preprocessor_url, PREPROCESSOR_PATH)
-
+    silent_download_from_azure(st.secrets["azure"]["model_url"], MODEL_PATH)
+    silent_download_from_azure(st.secrets["azure"]["preprocessor_url"], PREPROCESSOR_PATH)
     df = pd.read_csv(CSV_PATH)
     preprocessor = joblib.load(PREPROCESSOR_PATH)
     model = joblib.load(MODEL_PATH)
@@ -75,7 +67,7 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-if st.button("🔄 Reset Form"):
+if st.button("\ud83d\udd04 Reset Form"):
     for key, value in defaults.items():
         st.session_state[key] = value
 
@@ -87,9 +79,7 @@ with col1:
     source_city_options = [""] + sorted(df['source_city'].unique())
     st.session_state.source_city = st.selectbox("Source City", source_city_options)
     if st.session_state.source_city:
-        destination_options = [""] + sorted(
-            df[df['source_city'] == st.session_state.source_city]['destination_city'].unique()
-        )
+        destination_options = [""] + sorted(df[df['source_city'] == st.session_state.source_city]['destination_city'].unique())
         st.session_state.destination_city = st.selectbox("Destination City", destination_options)
 
 with col2:
@@ -115,13 +105,8 @@ with col3:
     st.session_state.days_left = st.slider("Days Left Until Departure", 1, 50, st.session_state.days_left)
 
 # --- Prediction ---
-if st.button("🔮 Predict & Optimize Price", type="primary"):
-    if not all([
-        st.session_state.source_city,
-        st.session_state.destination_city,
-        st.session_state.airline,
-        st.session_state.flight_class
-    ]):
+if st.button("\ud83e\udd2e Predict & Optimize Price", type="primary"):
+    if not all([st.session_state.source_city, st.session_state.destination_city, st.session_state.airline, st.session_state.flight_class]):
         st.warning("Please fill all dropdowns before predicting.")
     else:
         query = (
