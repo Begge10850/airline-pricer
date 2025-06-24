@@ -185,7 +185,8 @@ if st.session_state.get('prediction_results'):
     try:
         input_processed = results['input_processed'].astype(np.float32)
         explainer = shap.Explainer(model)
-        shap_vals = explainer(input_processed)
+        with st.spinner("Exlaining with SHAP..."):
+            shap_vals = explainer(input_processed)
 
         encoded_feature_names = preprocessor.get_feature_names_out()
         original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
