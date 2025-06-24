@@ -1,7 +1,15 @@
-streamlit
-pandas
-numpy
-joblib
-requests
-scikit-learn
-shap
+# Core
+streamlit==1.35.0
+pandas==2.2.2
+numpy==1.26.4
+joblib==1.4.2
+scikit-learn==1.4.2
+
+# Model explainability
+shap==0.45.0
+
+# Requests for Azure file downloads
+requests==2.32.3
+
+# Optional - for Streamlit Cloud compatibility (if errors occur)
+protobuf==4.25.3
