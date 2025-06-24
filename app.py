@@ -8,13 +8,13 @@ import requests
 
 # --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
-st.title("✈️ Dynamic Pricing & Revenue Advisor")
+st.title("\u2708\ufe0f Dynamic Pricing & Revenue Advisor")
 st.markdown("Predict base ticket prices and receive an optimized recommendation to maximize revenue.")
 
 # --- Download Helpers ---
 MODEL_PATH = "flight_price_model.joblib"
 PREPROCESSOR_PATH = "preprocessor.joblib"
-CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"  # Must exist in repo
+CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"
 
 def silent_download_from_azure(url, destination):
     if not os.path.exists(destination):
@@ -25,16 +25,8 @@ def silent_download_from_azure(url, destination):
 # --- Load Artifacts ---
 @st.cache_resource
 def load_data_and_artifacts():
-    try:
-        model_url = st.secrets["azure"]["model_url"]
-        preprocessor_url = st.secrets["azure"]["preprocessor_url"]
-    except KeyError:
-        st.error("⚠️ Azure model URLs are missing. Please set them in Streamlit Cloud secrets.")
-        st.stop()
-
-    silent_download_from_azure(model_url, MODEL_PATH)
-    silent_download_from_azure(preprocessor_url, PREPROCESSOR_PATH)
-
+    silent_download_from_azure(st.secrets["azure"]["model_url"], MODEL_PATH)
+    silent_download_from_azure(st.secrets["azure"]["preprocessor_url"], PREPROCESSOR_PATH)
     df = pd.read_csv(CSV_PATH)
     preprocessor = joblib.load(PREPROCESSOR_PATH)
     model = joblib.load(MODEL_PATH)
@@ -75,7 +67,7 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-if st.button("🔄 Reset Form"):
+if st.button("\ud83d\udd04 Reset Form"):
     for key, value in defaults.items():
         st.session_state[key] = value
 
@@ -87,9 +79,7 @@ with col1:
     source_city_options = [""] + sorted(df['source_city'].unique())
     st.session_state.source_city = st.selectbox("Source City", source_city_options)
     if st.session_state.source_city:
-        destination_options = [""] + sorted(
-            df[df['source_city'] == st.session_state.source_city]['destination_city'].unique()
-        )
+        destination_options = [""] + sorted(df[df['source_city'] == st.session_state.source_city]['destination_city'].unique())
         st.session_state.destination_city = st.selectbox("Destination City", destination_options)
 
 with col2:
@@ -115,13 +105,8 @@ with col3:
     st.session_state.days_left = st.slider("Days Left Until Departure", 1, 50, st.session_state.days_left)
 
 # --- Prediction ---
-if st.button("🔮 Predict & Optimize Price", type="primary"):
-    if not all([
-        st.session_state.source_city,
-        st.session_state.destination_city,
-        st.session_state.airline,
-        st.session_state.flight_class
-    ]):
+if st.button("\ud83e\udd2e Predict & Optimize Price", type="primary"):
+    if not all([st.session_state.source_city, st.session_state.destination_city, st.session_state.airline, st.session_state.flight_class]):
         st.warning("Please fill all dropdowns before predicting.")
     else:
         query = (
@@ -177,32 +162,30 @@ if st.session_state.get('prediction_results'):
 
     res_col1, res_col2 = st.columns(2)
     with res_col1:
-        st.metric(label="Predicted Base Price", value=f"₹{results['base_price']:,.0f}")
+        st.metric(label="Predicted Base Price", value=f"\u20b9{results['base_price']:,.0f}")
     with res_col2:
-        st.metric(label="✅ Optimized Price", value=f"₹{results['optimized_price']:,.0f}", delta=f"{results['uplift']:.2f}%")
+        st.metric(label="\u2705 Optimized Price", value=f"\u20b9{results['optimized_price']:,.0f}", delta=f"{results['uplift']:.2f}%")
 
-    st.subheader("🧮 SHAP Feature Contributions")
-    try:
-        input_processed = results['input_processed'].astype(np.float32)
-        explainer = shap.Explainer(model)
-        shap_vals = explainer(input_processed)
+    if st.checkbox("Show SHAP Feature Contributions"):
+        st.subheader("\U0001f9ee SHAP Feature Contributions")
+        try:
+            input_processed = results['input_processed'].astype(np.float32)
+            explainer = shap.TreeExplainer(model)
+            shap_vals = explainer.shap_values(input_processed)
 
-        encoded_feature_names = preprocessor.get_feature_names_out()
-        original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
-        grouped = {}
+            encoded_feature_names = preprocessor.get_feature_names_out()
+            original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
+            grouped = {}
 
-        base = np.expm1(shap_vals.base_values[0])
-        contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - base
+            for feature, original_name, value in zip(encoded_feature_names, original_feature_names, shap_vals[0]):
+                grouped.setdefault(original_name, 0)
+                grouped[original_name] += value
 
-        for feature, original_name, value in zip(encoded_feature_names, original_feature_names, contrib_raw):
-            grouped.setdefault(original_name, 0)
-            grouped[original_name] += value
+            contrib_df = pd.DataFrame(list(grouped.items()), columns=["Original Feature", "Contribution (\u20b9)"])
+            contrib_df["Contribution (\u20b9)"] = contrib_df["Contribution (\u20b9)"].round(2)
+            contrib_df = contrib_df.sort_values("Contribution (\u20b9)", ascending=False)
 
-        contrib_df = pd.DataFrame(list(grouped.items()), columns=["Original Feature", "Contribution (₹)"])
-        contrib_df["Contribution (₹)"] = contrib_df["Contribution (₹)"].round(2)
-        contrib_df = contrib_df.sort_values("Contribution (₹)", ascending=False)
-
-        st.dataframe(contrib_df)
-        st.caption("Sum of contributions explains the predicted ticket price. Feature contributions are grouped by original input fields.")
-    except Exception as e:
-        st.error(f"SHAP explanation failed: {e}")
+            st.dataframe(contrib_df)
+            st.caption("Sum of contributions explains the predicted ticket price. Feature contributions are grouped by original input fields.")
+        except Exception as e:
+            st.error(f"SHAP explanation failed: {e}")
