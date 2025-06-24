@@ -14,7 +14,7 @@ st.markdown("Predict base ticket prices and receive an optimized recommendation 
 # --- Download Helpers ---
 MODEL_PATH = "flight_price_model.joblib"
 PREPROCESSOR_PATH = "preprocessor.joblib"
-CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"  # Must exist in repo
+CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"
 
 def silent_download_from_azure(url, destination):
     if not os.path.exists(destination):
@@ -40,11 +40,12 @@ def load_data_and_artifacts():
     model = joblib.load(MODEL_PATH)
     return df, preprocessor, model
 
-try:
-    df, preprocessor, model = load_data_and_artifacts()
-except FileNotFoundError:
-    st.error("Required model or data files not found.")
-    st.stop()
+df, preprocessor, model = load_data_and_artifacts()
+
+# --- Cache SHAP Explainer ---
+@st.cache_resource
+def get_shap_explainer():
+    return shap.Explainer(model)
 
 # --- Optimizer ---
 def find_optimal_price(base_price, elasticity_factor=1.5, price_range_pct=0.25):
@@ -183,26 +184,26 @@ if st.session_state.get('prediction_results'):
 
     st.subheader("🧮 SHAP Feature Contributions")
     try:
-        input_processed = results['input_processed'].astype(np.float32)
-        explainer = shap.Explainer(model)
-        shap_vals = explainer(input_processed)
+        with st.spinner("Generating SHAP explanations..."):
+            explainer = get_shap_explainer()
+            shap_vals = explainer(results['input_processed'])
 
-        encoded_feature_names = preprocessor.get_feature_names_out()
-        original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
-        grouped = {}
+            encoded_feature_names = preprocessor.get_feature_names_out()
+            original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
+            grouped = {}
 
-        base = np.expm1(shap_vals.base_values[0])
-        contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - base
+            base = np.expm1(shap_vals.base_values[0])
+            contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - base
 
-        for feature, original_name, value in zip(encoded_feature_names, original_feature_names, contrib_raw):
-            grouped.setdefault(original_name, 0)
-            grouped[original_name] += value
+            for feature, original_name, value in zip(encoded_feature_names, original_feature_names, contrib_raw):
+                grouped.setdefault(original_name, 0)
+                grouped[original_name] += value
 
-        contrib_df = pd.DataFrame(list(grouped.items()), columns=["Original Feature", "Contribution (₹)"])
-        contrib_df["Contribution (₹)"] = contrib_df["Contribution (₹)"].round(2)
-        contrib_df = contrib_df.sort_values("Contribution (₹)", ascending=False)
+            contrib_df = pd.DataFrame(list(grouped.items()), columns=["Original Feature", "Contribution (₹)"])
+            contrib_df["Contribution (₹)"] = contrib_df["Contribution (₹)"].round(2)
+            contrib_df = contrib_df.sort_values("Contribution (₹)", ascending=False)
 
-        st.dataframe(contrib_df)
-        st.caption("Sum of contributions explains the predicted ticket price. Feature contributions are grouped by original input fields.")
+            st.dataframe(contrib_df)
+            st.caption("Sum of contributions explains the predicted ticket price. Feature contributions are grouped by original input fields.")
     except Exception as e:
         st.error(f"SHAP explanation failed: {e}")
