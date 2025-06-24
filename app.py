@@ -16,24 +16,19 @@ MODEL_PATH = "flight_price_model.joblib"
 PREPROCESSOR_PATH = "preprocessor.joblib"
 CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"  # Must exist in repo
 
-def silent_download_from_azure(url, destination):
+def download_from_azure(url, destination):
     if not os.path.exists(destination):
+        st.info(f"⏬ Downloading {destination} from Azure...")
         response = requests.get(url)
         with open(destination, 'wb') as f:
             f.write(response.content)
+        st.success(f"{destination} downloaded.")
 
 # --- Load Artifacts ---
 @st.cache_resource
 def load_data_and_artifacts():
-    try:
-        model_url = st.secrets["azure"]["model_url"]
-        preprocessor_url = st.secrets["azure"]["preprocessor_url"]
-    except KeyError:
-        st.error("⚠️ Azure model URLs are missing. Please set them in Streamlit Cloud secrets.")
-        st.stop()
-
-    silent_download_from_azure(model_url, MODEL_PATH)
-    silent_download_from_azure(preprocessor_url, PREPROCESSOR_PATH)
+    download_from_azure(st.secrets["azure"]["model_url"], MODEL_PATH)
+    download_from_azure(st.secrets["azure"]["preprocessor_url"], PREPROCESSOR_PATH)
 
     df = pd.read_csv(CSV_PATH)
     preprocessor = joblib.load(PREPROCESSOR_PATH)
@@ -87,9 +82,7 @@ with col1:
     source_city_options = [""] + sorted(df['source_city'].unique())
     st.session_state.source_city = st.selectbox("Source City", source_city_options)
     if st.session_state.source_city:
-        destination_options = [""] + sorted(
-            df[df['source_city'] == st.session_state.source_city]['destination_city'].unique()
-        )
+        destination_options = [""] + sorted(df[df['source_city'] == st.session_state.source_city]['destination_city'].unique())
         st.session_state.destination_city = st.selectbox("Destination City", destination_options)
 
 with col2:
@@ -116,12 +109,7 @@ with col3:
 
 # --- Prediction ---
 if st.button("🔮 Predict & Optimize Price", type="primary"):
-    if not all([
-        st.session_state.source_city,
-        st.session_state.destination_city,
-        st.session_state.airline,
-        st.session_state.flight_class
-    ]):
+    if not all([st.session_state.source_city, st.session_state.destination_city, st.session_state.airline, st.session_state.flight_class]):
         st.warning("Please fill all dropdowns before predicting.")
     else:
         query = (
