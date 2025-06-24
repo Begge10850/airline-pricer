@@ -184,12 +184,15 @@ if st.session_state.get('prediction_results'):
     st.subheader("🧮 SHAP Feature Contributions")
     try:
         input_processed = results['input_processed'].astype(np.float32)
-        explainer = shap.TreeExplainer(model)
-        shap_vals = explainer.shap_values(input_processed)
+        explainer = shap.Explainer(model)
+        shap_vals = explainer(input_processed)
 
         encoded_feature_names = preprocessor.get_feature_names_out()
         original_feature_names = [name.split("_", 1)[-1] if "_" in name else name for name in encoded_feature_names]
         grouped = {}
+
+        base = np.expm1(shap_vals.base_values[0])
+        contrib_raw = np.expm1(shap_vals.base_values[0] + shap_vals.values[0]) - base
 
         for feature, original_name, value in zip(encoded_feature_names, original_feature_names, contrib_raw):
             grouped.setdefault(original_name, 0)
