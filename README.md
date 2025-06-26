@@ -2,6 +2,8 @@
 
 - A smart, data-driven pricing assistant that predicts base ticket fares and recommends optimized prices to maximize airline revenue — built using a Random Forest Regressor and deployed as an interactive Streamlit application.
 
+🔗 **Live App hosted on Streamlit:** [Dynamic Pricing & Revenue Advisor](https://uchumi-store.streamlit.app/)
+
 ---
 
 ## 📝 Project Overview
@@ -151,10 +153,37 @@
        ├── requirements.txt
        └── README.md
 
+---
+
 ## 📌 Future Work
 
-- AI Advisor Integration: Implement a Generative AI (LLM) feature that takes the SHAP output as context and provides a full narrative explanation of the price prediction.
+**🧠 AI-Powered Narratives**
 
-- Advanced SHAP Plots: Add more interactive SHAP visualizations like dependency plots and summary plots to a separate "Analysis" page in the app.
+- Integrate a Generative AI assistant to explain each pricing prediction using SHAP outputs — turning numbers into easy-to-understand stories for users.
 
-- A/B Testing
+**📊 Interactive SHAP Visualizations**
+
+- Add advanced SHAP plots such as summary and dependency charts in a dedicated “Analysis” section to help users explore how features influence pricing.
+
+**🧪 A/B Testing**
+
+- Implement a feature to compare different pricing strategies using A/B testing logic — measuring uplift in revenue or user engagement.
+
+**🚀 FastAPI Backend Integration**
+
+- Deploy core prediction and explanation logic via a FastAPI backend for faster, scalable, and modular API-based inference.
+
+**☁️ Azure Hosting**
+
+- Use Azure App Service (Free Tier) to host the FastAPI backend, and load model artifacts securely from Azure Blob Storage.
+
+**⚡ Speed & Performance Optimization**
+
+- Add async support for concurrent API requests
+
+- Use in-memory or Redis caching for repeat queries
+
+- Quantize or convert models to ONNX to reduce latency
+
+**📡 Real-Time User Experience**
+Introduce WebSockets or async polling to provide live updates when predictions or recommendations are ready.
