@@ -1,6 +1,6 @@
 ## ✈️ Airline Pricing & Revenue Optimization Advisor
 
-- A smart, data-driven pricing assistant that predicts base ticket fares and recommends optimized prices to maximize airline revenue — built using a Random Forest Regressor and deployed as an interactive Streamlit application.
+- A smart, data-driven pricing assistant that predicts base ticket fares and recommends optimized prices to maximize airline revenue, built using a Random Forest Regressor and deployed as an interactive Streamlit application.
 
 🔗 **Live App hosted on Streamlit:** [Dynamic Pricing & Revenue Advisor]((https://airline-pricer.streamlit.app/))
 
