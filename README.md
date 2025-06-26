@@ -57,7 +57,7 @@ Here are a few views of the deployed Streamlit app.
 ## ⚙️ Tech Stack
 
        | Category         | Tools Used                                      |
-       |------------------|--------------------------------------------------|
+       |------------------|-------------------------------------------------|
        | Programming      | Python, Streamlit                               |
        | Modeling         | Random Forest Regressor                         |
        | Data Processing  | pandas, scikit-learn                            |
