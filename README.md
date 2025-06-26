@@ -8,10 +8,10 @@
 
 - In the dynamic airline industry, ticket pricing is a complex task influenced by demand, competition, timing, and service class. This project tackles this challenge by creating an end-to-end data science solution that empowers an airline's revenue management team.
 
-✅ Accurate **price predictions**  
-✅ Simulated **demand-based price optimization**  
-✅ Transparent **SHAP explanations**  
-✅ A user-friendly **Streamlit web app**
+       ✅ Accurate **price predictions**  
+       ✅ Simulated **demand-based price optimization**  
+       ✅ Transparent **SHAP explanations**  
+       ✅ A user-friendly **Streamlit web app**
 
 - The system leverages a machine learning model trained on historical flight data to provide an accurate Base Price Prediction. It then goes a step further by using an economic optimization engine to recommend a final price designed to maximize revenue. The entire solution is delivered through a user-friendly and interactive web application, turning complex data into actionable business insights.
 
@@ -19,7 +19,7 @@
 
 ## ✨ Key Features
 
-##🔮 Accurate Price Prediction: 
+## 🔮 Accurate Price Prediction: 
 
 - Utilizes a highly accurate Random Forest Regressor (MAE: ₹1,185, R²: 0.985) to predict log-transformed base ticket prices.
 
@@ -57,15 +57,15 @@
 
 - After a comprehensive Exploratory Data Analysis (EDA) and testing multiple algorithms (Linear Regression, XGBoost, LightGBM), the Random Forest Regressor was selected as the champion model for its superior performance.
 
-**Target Variable:** Log-transformed ticket price (np.log1p) to handle the skewed price distribution.
+- **Target Variable:** Log-transformed ticket price (np.log1p) to handle the skewed price distribution.
 
-**Key Features:** airline, source_city, destination_city, stops, class, days_left, departure_time, arrival_time, and duration.
+- **Key Features:** airline, source_city, destination_city, stops, class, days_left, departure_time, arrival_time, and duration.
 
-**Final Evaluation Metrics (on the test set):**
+- **Final Evaluation Metrics (on the test set):**
 
-**Mean Absolute Error (MAE):** ₹1,185 (On average, the model's prediction is off by about ₹1,185).
+- **Mean Absolute Error (MAE):** ₹1,185 (On average, the model's prediction is off by about ₹1,185).
 
-**R-squared (R²):** 0.985 (The model explains ~98.5% of the variance in ticket prices).
+- **R-squared (R²):** 0.985 (The model explains ~98.5% of the variance in ticket prices).
 
 ---
 
@@ -115,7 +115,7 @@
 
 4. Add Secret Keys
 
-Create a .streamlit/secrets.toml file in the root of your project folder. This is required for fetching the model from Azure Blob Storage when deploying.
+- Create a .streamlit/secrets.toml file in the root of your project folder. This is required for fetching the model from Azure Blob Storage when deploying.
 
        [azure]
        model_url = "https:...."
@@ -123,7 +123,7 @@ Create a .streamlit/secrets.toml file in the root of your project folder. This i
 
 5. Launch the App Locally
 
-streamlit run app.py
+       streamlit run app.py
 
 ---
 
@@ -157,4 +157,4 @@ streamlit run app.py
 
 - Advanced SHAP Plots: Add more interactive SHAP visualizations like dependency plots and summary plots to a separate "Analysis" page in the app.
 
-**A/B Testing
+- A/B Testing
