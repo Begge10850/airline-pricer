@@ -6,12 +6,10 @@ import shap
 import os
 import requests
 
-# --- Page Setup ---
 st.set_page_config(page_title="Airline Pricing Advisor", layout="wide")
 st.title("✈️ Dynamic Pricing & Revenue Advisor")
 st.markdown("Predict base ticket prices and receive an optimized recommendation to maximize revenue.")
 
-# --- Download Helpers ---
 MODEL_PATH = "flight_price_model.joblib"
 PREPROCESSOR_PATH = "preprocessor.joblib"
 CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"
@@ -19,17 +17,23 @@ CSV_PATH = "data/Clean_Dataset_EDA_Processed.csv"
 def silent_download_from_azure(url, destination):
     if not os.path.exists(destination):
         response = requests.get(url)
-        with open(destination, 'wb') as f:
-            f.write(response.content)
+        if response.status_code == 200 and "html" not in response.headers.get("Content-Type", "").lower():
+            with open(destination, 'wb') as f:
+                f.write(response.content)
+        else:
+            st.error(f"Download failed: {url}")
+            st.stop()
+    if os.path.getsize(destination) < 2000:
+        st.error(f"Downloaded file is unexpectedly small: {destination}")
+        st.stop()
 
-# --- Load Artifacts ---
 @st.cache_resource
 def load_data_and_artifacts():
     try:
         model_url = st.secrets["azure"]["model_url"]
         preprocessor_url = st.secrets["azure"]["preprocessor_url"]
     except KeyError:
-        st.error("⚠️ Azure model URLs are missing. Please set them in Streamlit Cloud secrets.")
+        st.error("Azure model URLs are missing in secrets.")
         st.stop()
 
     silent_download_from_azure(model_url, MODEL_PATH)
@@ -42,12 +46,10 @@ def load_data_and_artifacts():
 
 df, preprocessor, model = load_data_and_artifacts()
 
-# --- Cache SHAP Explainer ---
 @st.cache_resource
 def get_shap_explainer():
     return shap.Explainer(model)
 
-# --- Optimizer ---
 def find_optimal_price(base_price, elasticity_factor=1.5, price_range_pct=0.25):
     best_price = base_price
     max_revenue = 0
@@ -65,7 +67,6 @@ def find_optimal_price(base_price, elasticity_factor=1.5, price_range_pct=0.25):
     uplift = ((max_revenue - base_revenue) / base_revenue) * 100 if base_revenue > 0 else 0
     return {"optimized_price": best_price, "uplift_percent": uplift}
 
-# --- UI State Defaults ---
 defaults = {
     "source_city": "", "destination_city": "", "airline": "",
     "time_filter_type": "Departure", "departure_time": "", "arrival_time": "",
@@ -80,7 +81,6 @@ if st.button("🔄 Reset Form"):
     for key, value in defaults.items():
         st.session_state[key] = value
 
-# --- Inputs ---
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -115,7 +115,6 @@ with col3:
     st.session_state.flight_class = st.selectbox("Class", class_options)
     st.session_state.days_left = st.slider("Days Left Until Departure", 1, 50, st.session_state.days_left)
 
-# --- Prediction ---
 if st.button("🔮 Predict & Optimize Price", type="primary"):
     if not all([
         st.session_state.source_city,
@@ -171,7 +170,6 @@ if st.button("🔮 Predict & Optimize Price", type="primary"):
             st.error("No matching flight data found for the selected filters.")
             st.session_state['prediction_results'] = None
 
-# --- Results ---
 if st.session_state.get('prediction_results'):
     results = st.session_state['prediction_results']
     st.subheader("Pricing Recommendation")
@@ -204,6 +202,6 @@ if st.session_state.get('prediction_results'):
             contrib_df = contrib_df.sort_values("Contribution (₹)", ascending=False)
 
             st.dataframe(contrib_df)
-            st.caption("Sum of contributions explains the predicted ticket price. Feature contributions are grouped by original input fields.")
+            st.caption("Sum of contributions explains the predicted ticket price.")
     except Exception as e:
         st.error(f"SHAP explanation failed: {e}")
