@@ -1,10 +1,10 @@
-##✈️ Airline Pricing & Revenue Optimization Advisor
+## ✈️ Airline Pricing & Revenue Optimization Advisor
 
 - A smart, data-driven pricing assistant that predicts base ticket fares and recommends optimized prices to maximize airline revenue — built using a Random Forest Regressor and deployed as an interactive Streamlit application.
 
 ---
 
-##📝 Project Overview
+## 📝 Project Overview
 
 - In the dynamic airline industry, ticket pricing is a complex task influenced by demand, competition, timing, and service class. This project tackles this challenge by creating an end-to-end data science solution that empowers an airline's revenue management team.
 
@@ -17,31 +17,31 @@
 
 ---
 
-##✨ Key Features
+## ✨ Key Features
 
 ##🔮 Accurate Price Prediction: 
 
 - Utilizes a highly accurate Random Forest Regressor (MAE: ₹1,185, R²: 0.985) to predict log-transformed base ticket prices.
 
-##💸 Revenue Optimization Engine: 
+## 💸 Revenue Optimization Engine: 
 
 - Simulates demand based on price elasticity to propose an Optimized Price and calculates the estimated % Revenue Uplift, directly linking the model's output to business value.
 
-##📊 Explainable AI (XAI) with SHAP: 
+## 📊 Explainable AI (XAI) with SHAP: 
 
 - Integrates SHAP (SHapley Additive exPlanations) to provide a transparent breakdown of which features (e.g., class, airline, days_left) had the biggest impact on each individual price prediction, building user trust.
 
-##🌐 Cloud-Native Deployment: 
+## 🌐 Cloud-Native Deployment: 
 
 - The application is designed for the cloud, fetching the trained model and preprocessor files securely from a remote source (Azure Blob Storage) on startup.
 
-##🧠 Dynamic & Interactive UI: 
+## 🧠 Dynamic & Interactive UI: 
 
 - The Streamlit interface features cascading filters that dynamically adjust the available flight options based on the user's route and airline selections, creating a realistic and intuitive workflow.
 
 ---
 
-##⚙️ Tech Stack
+## ⚙️ Tech Stack
 
        | Category         | Tools Used                                      |
        |------------------|--------------------------------------------------|
@@ -53,7 +53,7 @@
 
 ---
 
-##🧠 Model & Evaluation
+## 🧠 Model & Evaluation
 
 - After a comprehensive Exploratory Data Analysis (EDA) and testing multiple algorithms (Linear Regression, XGBoost, LightGBM), the Random Forest Regressor was selected as the champion model for its superior performance.
 
@@ -69,7 +69,7 @@
 
 ---
 
-##🏗️ System Architecture
+## 🏗️ System Architecture
 
        User Interface (Streamlit)
               │
@@ -90,7 +90,7 @@
 
 ---
 
-##🚀 Getting Started
+## 🚀 Getting Started
 
 - Follow these steps to run the application locally.
 
@@ -127,7 +127,7 @@ streamlit run app.py
 
 ---
 
-##📦 Folder Structure
+## 📦 Folder Structure
 
        airline-pricer/
        │
@@ -151,7 +151,7 @@ streamlit run app.py
        ├── requirements.txt
        └── README.md
 
-##📌 Future Work
+## 📌 Future Work
 
 - AI Advisor Integration: Implement a Generative AI (LLM) feature that takes the SHAP output as context and provides a full narrative explanation of the price prediction.
 
