@@ -9,10 +9,12 @@
 Here are a few views of the deployed Streamlit app.
 
 1️⃣ **App Homepage**  
-![App Homepage]((https://github.com/Begge10850/airline-pricer/blob/main/plots/Homepage.png))
+![App Homepage](plots/Homepage.png)
 
-2️⃣ **Sample Product 1**  
-![Prediction]((https://github.com/Begge10850/airline-pricer/blob/main/plots/Prediction.png))
+
+2️⃣ **Ticket Prdeiction**  
+![Prediction](plots/Prediction.png)
+
 ---
 
 ## 📝 Project Overview
@@ -196,4 +198,4 @@ Here are a few views of the deployed Streamlit app.
 
 **📡 Real-Time User Experience**
 
-Introduce WebSockets or async polling to provide live updates when predictions or recommendations are ready.
+- Introduce WebSockets or async polling to provide live updates when predictions or recommendations are ready.
