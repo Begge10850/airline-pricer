@@ -2,8 +2,17 @@
 
 - A smart, data-driven pricing assistant that predicts base ticket fares and recommends optimized prices to maximize airline revenue — built using a Random Forest Regressor and deployed as an interactive Streamlit application.
 
-🔗 **Live App hosted on Streamlit:** [Dynamic Pricing & Revenue Advisor](https://uchumi-store.streamlit.app/)
+🔗 **Live App hosted on Streamlit:** [Dynamic Pricing & Revenue Advisor]((https://airline-pricer.streamlit.app/))
 
+---
+## 📸 Screenshots
+Here are a few views of the deployed Streamlit app.
+
+1️⃣ **App Homepage**  
+![App Homepage]((https://github.com/Begge10850/airline-pricer/blob/main/plots/Homepage.png))
+
+2️⃣ **Sample Product 1**  
+![Prediction]((https://github.com/Begge10850/airline-pricer/blob/main/plots/Prediction.png))
 ---
 
 ## 📝 Project Overview
@@ -186,4 +195,5 @@
 - Quantize or convert models to ONNX to reduce latency
 
 **📡 Real-Time User Experience**
+
 Introduce WebSockets or async polling to provide live updates when predictions or recommendations are ready.
